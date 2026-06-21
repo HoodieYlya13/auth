@@ -2,8 +2,28 @@ import { redirect } from "next/navigation";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { AuthForm } from "@/components/auth/auth-form";
 import { Lock } from "lucide-react";
+import { Suspense } from "react";
 
-export default async function Page({ params }: PageProps<"/[lang]">) {
+function AuthFormSkeleton() {
+  return (
+    <div className="space-y-5 animate-pulse">
+      <div className="space-y-2">
+        <div className="h-9 bg-muted rounded-lg w-full" />
+        <div className="h-3 bg-muted rounded w-3/4" />
+      </div>
+      <div className="h-4 bg-muted rounded w-1/4 mx-auto" />
+      <div className="space-y-2">
+        <div className="h-9 bg-muted rounded-lg w-full" />
+        <div className="h-9 bg-muted rounded-lg w-full" />
+        <div className="h-3 bg-muted rounded w-3/4" />
+      </div>
+    </div>
+  );
+}
+
+export default async function Page({
+  params,
+}: PageProps<"/[lang]">) {
   const { lang } = await params;
 
   if (!hasLocale(lang)) redirect("/en");
@@ -25,7 +45,9 @@ export default async function Page({ params }: PageProps<"/[lang]">) {
           <p className="text-sm text-muted-foreground">{dict.description}</p>
         </div>
 
-        <AuthForm dict={dict} />
+        <Suspense fallback={<AuthFormSkeleton />}>
+          <AuthForm locale={lang} dict={dict} />
+        </Suspense>
       </div>
     </main>
   );

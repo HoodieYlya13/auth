@@ -1,0 +1,115 @@
+// Self-hosted OIDC identity provider — data model.
+// Ephemeral state (WebAuthn challenges, magic-link tokens, OIDC auth codes) lives
+// in Redis with TTL, not here. This schema holds only durable state.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  email           String    @unique
+  emailVerifiedAt DateTime?
+  // Registration is "complete" once username is set (required to be redirected to a client).
+  username        String?   @unique
+  firstName       String?
+  lastName        String?
+  birthday        DateTime? @db.Date
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  credentials   Credential[]
+  memberships   AppMembership[]
+  refreshTokens RefreshToken[]
+  sessions      Session[]
+}
+
+// A registered WebAuthn passkey belonging to a user.
+model Credential {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @db.Uuid
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique // base64url credential id
+  publicKey    Bytes
+  counter      BigInt    @default(0)
+  transports   String[]
+  deviceType   String?
+  backedUp     Boolean   @default(false)
+  name         String? // user-facing label
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
+}
+
+// A registered relying-party app (OIDC client) managed from the admin dashboard.
+model Client {
+  id                     String   @id @default(uuid(7)) @db.Uuid
+  clientId               String   @unique // public OIDC client_id
+  clientSecretHash       String? // null for public PKCE clients
+  name                   String
+  redirectUris           String[]
+  postLogoutRedirectUris String[]
+  trusted                Boolean  @default(false) // first-party: skip consent
+  logoUrl                String?
+  roles                  String[] @default(["USER", "ADMIN"]) // valid role names for this app
+  defaultRoles           String[] @default(["USER"]) // roles auto-assigned to a new member on link
+  allowedScopes          String[] @default(["openid", "profile", "email", "offline_access"])
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  memberships   AppMembership[]
+  refreshTokens RefreshToken[]
+}
+
+// User <-> Client link. Row presence means the user consented to (linked) the app.
+// clientId references Client.id (FK), distinct from Client.clientId (the public id).
+model AppMembership {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  userId        String   @db.Uuid
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId      String   @db.Uuid
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  roles         String[] @default(["USER"])
+  scopesGranted String[]
+  linkedAt      DateTime @default(now())
+
+  @@unique([userId, clientId])
+  @@index([clientId])
+}
+
+// Rotating refresh token. On reuse of an already-rotated token, the whole family is revoked.
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  familyId  String    @db.Uuid
+  tokenHash String    @unique // sha256 of the opaque token
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId  String    @db.Uuid
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  scope     String
+  expiresAt DateTime
+  usedAt    DateTime? // set when rotated
+  revoked   Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([familyId])
+  @@index([userId])
+}
+
+// IdP login session, referenced by an httpOnly cookie.
+model Session {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

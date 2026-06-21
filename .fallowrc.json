@@ -4,13 +4,18 @@
     "app/**/page.tsx",
     "app/**/layout.tsx",
     "app/**/not-found.tsx",
-    "app/**/error.tsx"
+    "app/**/error.tsx",
+    "proxy.ts",
+    "scripts/verify-oidc.mjs"
   ],
   "ignoreExports": [
     {
       "file": "components/ui/button.tsx",
       "exports": ["buttonVariants"]
     }
+  ],
+  "ignoreDependencies": [
+    "pg"
   ],
   "duplicates": {
     "minOccurrences": 3

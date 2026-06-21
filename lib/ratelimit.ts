@@ -2,31 +2,13 @@ import "server-only";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { getClientIp } from "@/lib/ip";
+import { getRedisOrNull } from "@/lib/redis";
 
 export class RateLimitError extends Error {
   constructor() {
     super("TOO_MANY_REQUESTS");
     this.name = "RateLimitError";
   }
-}
-
-function getRedisClient(): Redis | null {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (!url || !token) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn(
-        "⚠️ UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN not found. Rate limiting will be disabled.",
-      );
-      return null;
-    }
-    throw new Error(
-      "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production.",
-    );
-  }
-
-  return new Redis({ url, token });
 }
 
 function getLimiter(identifier: string, redis: Redis) {
@@ -56,7 +38,7 @@ function getGlobalBudget(identifier: string, redis: Redis) {
 }
 
 export async function isRepeatSubmission(identifier: string): Promise<boolean> {
-  const redis = getRedisClient();
+  const redis = getRedisOrNull();
   if (!redis) return false;
 
   const ip = await getClientIp();
@@ -71,7 +53,7 @@ export async function isRepeatSubmission(identifier: string): Promise<boolean> {
 }
 
 export async function checkRateLimit(identifier: string): Promise<void> {
-  const redis = getRedisClient();
+  const redis = getRedisOrNull();
   if (!redis) return;
 
   const ip = await getClientIp();

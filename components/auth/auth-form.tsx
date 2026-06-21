@@ -5,15 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Turnstile } from "@/components/auth/turnstile";
 import { toast } from "sonner";
+import { startAuthentication } from "@simplewebauthn/browser";
 import {
-  authenticatePasskey,
   authenticateMagicLink,
+  beginPasskeyAuthentication,
+  finishPasskeyAuthenticationAction,
 } from "@/lib/actions/auth-actions";
 import { Fingerprint, Mail, Loader2 } from "lucide-react";
+
+import { useSearchParams } from "next/navigation";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 interface AuthFormProps {
+  locale: string;
   dict: {
     emailLabel: string;
     emailPlaceholder: string;
@@ -28,10 +33,13 @@ interface AuthFormProps {
     toastSuccessMagicLink: string;
     toastErrorEmail: string;
     toastErrorSpam: string;
+    toastErrorPasskey: string;
   };
 }
 
-export function AuthForm({ dict }: AuthFormProps) {
+export function AuthForm({ locale, dict }: AuthFormProps) {
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("return_to") ?? undefined;
   const [email, setEmail] = useState("");
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -76,14 +84,35 @@ export function AuthForm({ dict }: AuthFormProps) {
     setActiveAction("passkey");
 
     const toastId = toast.loading(dict.toastInitiatingPasskey);
-    const result = await authenticatePasskey();
+    try {
+      const begin = await beginPasskeyAuthentication();
+      if (!begin.success || !begin.options || !begin.flowId) {
+        toast.error(begin.error || dict.toastErrorPasskey, { id: toastId });
+        return;
+      }
 
-    if (result.success)
-      toast.success(dict.toastSuccessPasskey, { id: toastId });
-    else toast.error(result.error || "Authentication failed", { id: toastId });
+      const assertion = await startAuthentication({
+        optionsJSON: begin.options,
+      });
+      const result = await finishPasskeyAuthenticationAction(
+        begin.flowId,
+        assertion,
+        locale,
+        returnTo,
+      );
 
-    setIsSubmitting(false);
-    setActiveAction(null);
+      if (result.success && result.redirectTo) {
+        toast.success(dict.toastSuccessPasskey, { id: toastId });
+        window.location.href = result.redirectTo;
+        return;
+      }
+      toast.error(result.error || dict.toastErrorPasskey, { id: toastId });
+    } catch {
+      toast.error(dict.toastErrorPasskey, { id: toastId });
+    } finally {
+      setIsSubmitting(false);
+      setActiveAction(null);
+    }
   };
 
   const handleMagicLink = async () => {
@@ -98,6 +127,8 @@ export function AuthForm({ dict }: AuthFormProps) {
       email,
       elapsedMs,
       captchaToken: turnstileToken || undefined,
+      locale,
+      returnTo,
     });
 
     if (result.success) {
