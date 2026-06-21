@@ -1,0 +1,19 @@
+{
+  "metaTitle": "Auth",
+  "metaDescription": "Secure passwordless authentication service using Passkey and Magic Link.",
+  "welcome": "Sign In",
+  "description": "Choose your preferred secure login method",
+  "emailLabel": "Email Address",
+  "emailPlaceholder": "name@example.com",
+  "continuePasskey": "Continue with Passkey",
+  "sendMagicLink": "Send Magic Link",
+  "passkeyDescription": "Fast and secure sign in using Touch ID, Face ID, or Windows Hello.",
+  "magicLinkDescription": "We will email you a secure link to log in instantly.",
+  "orDivider": "or",
+  "toastInitiatingPasskey": "Initializing Passkey authentication...",
+  "toastInitiatingMagicLink": "Transmitting magic link request...",
+  "toastSuccessPasskey": "Passkey challenge verified successfully!",
+  "toastSuccessMagicLink": "Magic link sent successfully!",
+  "toastErrorEmail": "Please enter a valid email address.",
+  "toastErrorSpam": "Spam detection triggered."
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "app/**/page.tsx",
+    "app/**/layout.tsx",
+    "app/**/not-found.tsx",
+    "app/**/error.tsx"
+  ],
+  "ignoreExports": [
+    {
+      "file": "components/ui/button.tsx",
+      "exports": ["buttonVariants"]
+    }
+  ],
+  "duplicates": {
+    "minOccurrences": 3
+  },
+  "health": {
+    "maxCyclomatic": 10,
+    "maxCognitive": 12,
+    "maxCrap": 80.0
+  },
+  "rules": {}
+}

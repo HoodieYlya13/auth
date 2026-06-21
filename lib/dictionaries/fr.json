@@ -1,0 +1,19 @@
+{
+  "metaTitle": "Auth",
+  "metaDescription": "Service d'authentification sécurisé sans mot de passe via Passkey et Lien Magique.",
+  "welcome": "Connexion",
+  "description": "Choisissez votre méthode de connexion sécurisée",
+  "emailLabel": "Adresse e-mail",
+  "emailPlaceholder": "nom@exemple.com",
+  "continuePasskey": "Continuer avec Passkey",
+  "sendMagicLink": "Envoyer un lien magique",
+  "passkeyDescription": "Connexion rapide et sécurisée via Touch ID, Face ID ou Windows Hello.",
+  "magicLinkDescription": "Nous vous enverrons un e-mail avec un lien pour vous connecter instantanément.",
+  "orDivider": "ou",
+  "toastInitiatingPasskey": "Initialisation de l'authentification Passkey...",
+  "toastInitiatingMagicLink": "Transmission de la demande de lien magique...",
+  "toastSuccessPasskey": "Défi Passkey vérifié avec succès !",
+  "toastSuccessMagicLink": "Lien magique envoyé avec succès !",
+  "toastErrorEmail": "Veuillez entrer une adresse e-mail valide.",
+  "toastErrorSpam": "Détection de spam déclenchée."
+}

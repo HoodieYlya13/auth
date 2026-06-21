@@ -1,0 +1,39 @@
+name: Database Keep-Warm & Cleanup
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping-and-cleanup:
+    name: Ping DB & Cleanup Unconfirmed Users
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Make API Request
+        env:
+          APP_DOMAIN: ${{ secrets.APP_DOMAIN }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_DOMAIN" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Error: APP_DOMAIN and CRON_SECRET GitHub secrets must be set."
+            exit 1
+          fi
+
+          echo "Sending keep-warm and cleanup ping to https://$APP_DOMAIN/api/cron..."
+
+          response=$(curl -s -w "%{http_code}" -o response.json \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://$APP_DOMAIN/api/cron")
+
+          echo "Response Body:"
+          cat response.json
+          echo ""
+
+          if [ "$response" -ne 200 ]; then
+            echo "Error: Cron API returned HTTP status $response"
+            exit 1
+          fi
+
+          echo "Success: Keep-warm and cleanup finished."
