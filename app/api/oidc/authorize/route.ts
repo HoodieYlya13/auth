@@ -4,13 +4,88 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getClient, isValidRedirectUri } from "@/lib/oidc/clients";
 import { issueAuthCode } from "@/lib/oidc/codes";
 import { SUPPORTED_SCOPES } from "@/lib/oidc/discovery";
+import {
+  getDictionary,
+  hasLocale,
+  type Locale,
+} from "@/lib/dictionaries/dictionaries";
 
 const DEFAULT_LOCALE = "en";
+
+function pickLocale(req: NextRequest): Locale {
+  const first =
+    req.headers
+      .get("accept-language")
+      ?.split(",")[0]
+      ?.trim()
+      .slice(0, 2)
+      .toLowerCase() ?? "";
+  return hasLocale(first) ? first : DEFAULT_LOCALE;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
 
 function badRequest(message: string) {
   return new NextResponse(`Authorization error: ${message}`, {
     status: 400,
     headers: { "content-type": "text/plain" },
+  });
+}
+
+function isWebRedirect(url: URL): boolean {
+  return url.protocol === "http:" || url.protocol === "https:";
+}
+
+function deepLinkHandoff(
+  target: string,
+  lang: Locale,
+  t: { title: string; message: string; button: string },
+): NextResponse {
+  const json = JSON.stringify(target);
+  const html = `<!doctype html>
+<html lang="${lang}">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(t.title)}</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #fafafa; color: #0a0a0a; }
+  @media (prefers-color-scheme: dark) { body { background: #0a0a0a; color: #fafafa; } }
+  main { text-align: center; padding: 2rem; max-width: 22rem; }
+  h1 { font-size: 1.125rem; margin: 0 0 0.5rem; }
+  p { font-size: 0.875rem; opacity: 0.7; margin: 0 0 1.25rem; line-height: 1.5; }
+  a { display: inline-block; font-size: 0.875rem; font-weight: 600; text-decoration: none;
+    padding: 0.5rem 0.9rem; border-radius: 0.6rem; border: 1px solid currentColor; color: inherit; }
+</style>
+</head>
+<body>
+  <main>
+    <h1>${escapeHtml(t.title)}</h1>
+    <p>${escapeHtml(t.message)}</p>
+    <a id="link">${escapeHtml(t.button)}</a>
+  </main>
+  <script>
+    var target = ${json};
+    document.getElementById("link").setAttribute("href", target);
+    location.href = target;
+    setTimeout(function () { try { window.close(); } catch (e) {} }, 400);
+  </script>
+</body>
+</html>`;
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+    },
   });
 }
 
@@ -56,11 +131,17 @@ export async function GET(req: NextRequest) {
 
   const selfUrl = req.nextUrl.pathname + req.nextUrl.search;
   const origin = req.nextUrl.origin;
+  
+  const interactiveReturn = (() => {
+    const u = new URL(selfUrl, origin);
+    u.searchParams.set("_handoff", "1");
+    return u.pathname + u.search;
+  })();
 
   const user = await getCurrentUser();
   if (!user) {
     const login = new URL(`/${DEFAULT_LOCALE}`, origin);
-    login.searchParams.set("return_to", selfUrl);
+    login.searchParams.set("return_to", interactiveReturn);
     return NextResponse.redirect(login);
   }
 
@@ -69,7 +150,7 @@ export async function GET(req: NextRequest) {
       `/${DEFAULT_LOCALE}/auth/complete-registration`,
       origin,
     );
-    reg.searchParams.set("return_to", selfUrl);
+    reg.searchParams.set("return_to", interactiveReturn);
     return NextResponse.redirect(reg);
   }
 
@@ -90,7 +171,7 @@ export async function GET(req: NextRequest) {
     });
     if (!membership) {
       const consent = new URL(`/${DEFAULT_LOCALE}/consent`, origin);
-      consent.searchParams.set("return_to", selfUrl);
+      consent.searchParams.set("return_to", interactiveReturn);
       return NextResponse.redirect(consent);
     }
   }
@@ -108,5 +189,12 @@ export async function GET(req: NextRequest) {
   const back = new URL(redirectUri);
   back.searchParams.set("code", code);
   if (state) back.searchParams.set("state", state);
+
+  if (p.get("_handoff") === "1" && !isWebRedirect(back)) {
+    const locale = pickLocale(req);
+    const { handoff } = await getDictionary(locale);
+    return deepLinkHandoff(back.toString(), locale, handoff);
+  }
+
   return NextResponse.redirect(back);
 }

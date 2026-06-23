@@ -43,6 +43,11 @@
     "scopeOffline": "Keeping you signed in",
     "error": "Something went wrong. Please try again."
   },
+  "handoff": {
+    "title": "You're signed in",
+    "message": "Return to the app to continue. You can close this window.",
+    "button": "Return to the app"
+  },
   "account": {
     "title": "Your account",
     "signOut": "Sign out",

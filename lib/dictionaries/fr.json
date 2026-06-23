@@ -43,6 +43,11 @@
     "scopeOffline": "Le maintien de votre connexion",
     "error": "Une erreur est survenue. Veuillez réessayer."
   },
+  "handoff": {
+    "title": "Vous êtes connecté",
+    "message": "Retournez à l'application pour continuer. Vous pouvez fermer cette fenêtre.",
+    "button": "Retourner à l'application"
+  },
   "account": {
     "title": "Votre compte",
     "signOut": "Se déconnecter",
