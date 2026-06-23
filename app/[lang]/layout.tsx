@@ -44,7 +44,16 @@ export default async function RootLayout({
     >
       <body>
         {children}
-        <Toaster position="top-center" theme="system" />
+        <Toaster
+          position="top-center"
+          theme="system"
+          toastOptions={{
+            classNames: {
+              error:
+                "bg-destructive! text-white! border-destructive! [&_[data-icon]]:text-white!",
+            },
+          }}
+        />
       </body>
     </html>
   );

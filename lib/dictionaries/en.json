@@ -1,5 +1,5 @@
 {
-  "metaTitle": "Auth",
+  "metaTitle": "HY13 Passkey SSO",
   "metaDescription": "Secure passwordless authentication service using Passkey and Magic Link.",
   "welcome": "Sign In",
   "description": "Choose your preferred secure login method",
@@ -63,6 +63,8 @@
     "noPasskeys": "You haven't added any passkeys yet.",
     "passkeyAdded": "Passkey added.",
     "passkeyError": "Passkey operation failed.",
+    "passkeyExists": "This device already has a passkey for your account.",
+    "passkeyCancelled": "Passkey setup was cancelled.",
     "rename": "Rename",
     "remove": "Remove",
     "removeConfirm": "Remove this passkey?",

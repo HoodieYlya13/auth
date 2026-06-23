@@ -14,7 +14,7 @@ import { prisma } from "@/lib/db";
 import { getRedis } from "@/lib/redis";
 
 const RP_ID = process.env.RP_ID ?? "localhost";
-const RP_NAME = "Auth";
+const RP_NAME = "HY13 SSO";
 const ORIGIN = process.env.ISSUER ?? "http://localhost:3000";
 const CHALLENGE_TTL = 300; // 5 minutes
 

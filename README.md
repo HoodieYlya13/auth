@@ -1,4 +1,4 @@
-# auth — self-hosted OIDC identity provider
+# HY13 Passkey SSO — self-hosted OIDC identity provider
 
 A small, self-hosted **OpenID Connect** identity provider ("mini-Keycloak") for first-
 and third-party apps. Users authenticate once here with a **passkey** or **magic link**,

@@ -1,7 +1,7 @@
 {
   "routing": {
     "repo_name": "auth",
-    "project_name": "Self-Hosted OpenID Connect Identity Provider",
+    "project_name": "HY13 Passkey SSO",
     "hero_image": ""
   },
   "project_meta": {
@@ -34,7 +34,7 @@
   ],
   "measurable_metrics": {
     "execution_latency": "Short-lived, self-contained RS256 access/ID tokens (~15 min TTL) verifiable offline against the JWKS with no introspection round-trip; refresh tokens valid 30 days with rotation on every use; sliding-window Redis rate limiting adds single-digit-millisecond overhead per auth action.",
-    "ui_performance": "Next.js 16 cacheComponents (Partial Prerendering) streams dynamic, cookie-dependent sections while static shells prerender instantly, and the React 19 compiler removes manual memoization; account passkey management uses an accessible Radix modal with optimistic refresh and Sonner toasts.",
+    "ui_performance": "Next.js 16 cacheComponents (Partial Prerendering) streams dynamic, cookie-dependent sections while static shells prerender instantly, and the React 19 compiler removes manual memoization; mutations are split by stakes: low-risk edits (profile fields like name/birthday, passkey renaming) use React 19 useOptimistic for instant feedback with automatic rollback on failure, while security-sensitive actions (adding/deleting passkeys, revoking sessions and linked apps) deliberately stay pessimistic — server action then router.refresh() to re-stream authoritative state — so the UI never shows an optimistic lie about a security boundary; all surfaced through accessible Radix modals and Sonner toasts.",
     "operational_cost": "$0/month runtime on free tiers — Neon PostgreSQL (pooled + direct/migration URLs), Upstash Redis, Resend, Cloudflare Turnstile, and Vercel — kept warm and clean by a daily GitHub Actions cron."
   },
   "star_challenges": [

@@ -88,8 +88,8 @@ export async function completeRegistration(
   if (taken)
     return { success: false, error: "That username is already taken." };
 
-  try {
-    await prisma.user.update({
+  const [error] = await tryCatch(
+    prisma.user.update({
       where: { id: user.id },
       data: {
         username,
@@ -97,8 +97,9 @@ export async function completeRegistration(
         lastName: parsed.data.lastName || null,
         birthday,
       },
-    });
-  } catch (error) {
+    }),
+  );
+  if (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
@@ -146,8 +147,8 @@ export async function updateProfile(
   if (taken)
     return { success: false, error: "That username is already taken." };
 
-  try {
-    await prisma.user.update({
+  const [error] = await tryCatch(
+    prisma.user.update({
       where: { id: user.id },
       data: {
         username,
@@ -155,8 +156,9 @@ export async function updateProfile(
         lastName: parsed.data.lastName || null,
         birthday,
       },
-    });
-  } catch (error) {
+    }),
+  );
+  if (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"
@@ -175,7 +177,9 @@ export interface PasskeyRegisterBegin {
 }
 
 export async function beginPasskeyRegistrationAction(): Promise<PasskeyRegisterBegin> {
-  const user = await getCurrentUser();
+  const [authError, user] = await tryCatch(getCurrentUser());
+  if (authError)
+    return { success: false, error: "Could not start passkey registration." };
   if (!user) return { success: false, error: "You are not signed in." };
 
   const [error, options] = await tryCatch(
@@ -194,7 +198,8 @@ export async function finishPasskeyRegistrationAction(
   response: RegistrationResponseJSON,
   label?: string,
 ): Promise<ActionResult> {
-  const user = await getCurrentUser();
+  const [authError, user] = await tryCatch(getCurrentUser());
+  if (authError) return { success: false, error: "Could not add that passkey." };
   if (!user) return { success: false, error: "You are not signed in." };
 
   const [error] = await tryCatch(

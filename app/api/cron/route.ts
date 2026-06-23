@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getRedisOrNull } from "@/lib/redis";
+import { tryCatch } from "@/lib/utils";
+
+function reason(error: Error): string {
+  return error.message || "Unknown error";
+}
 
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -22,30 +27,21 @@ export async function GET(req: NextRequest) {
 
   const redis = getRedisOrNull();
   if (redis) {
-    try {
-      await redis.ping();
-      results.redis = "Redis pinged successfully.";
-    } catch (err: unknown) {
-      results.redis = `Redis ping failed: ${
-        err instanceof Error ? err.message : "Unknown error"
-      }`;
-    }
+    const [error] = await tryCatch(redis.ping());
+    results.redis = error
+      ? `Redis ping failed: ${reason(error)}`
+      : "Redis pinged successfully.";
   } else results.redis = "Redis credentials not found, ping skipped.";
 
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    results.postgres = "Postgres pinged successfully.";
-  } catch (err: unknown) {
-    results.postgres = `Postgres ping failed: ${
-      err instanceof Error ? err.message : "Unknown error"
-    }`;
-  }
+  const [pgError] = await tryCatch(prisma.$queryRaw`SELECT 1`);
+  results.postgres = pgError
+    ? `Postgres ping failed: ${reason(pgError)}`
+    : "Postgres pinged successfully.";
 
-  try {
-    const now = new Date();
-    const unconfirmedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    const [users, sessions, refreshTokens] = await prisma.$transaction([
+  const now = new Date();
+  const unconfirmedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const [cleanupError, counts] = await tryCatch(
+    prisma.$transaction([
       prisma.user.deleteMany({
         where: {
           username: null,
@@ -55,13 +51,16 @@ export async function GET(req: NextRequest) {
       }),
       prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
       prisma.refreshToken.deleteMany({ where: { expiresAt: { lt: now } } }),
-    ]);
+    ]),
+  );
 
-    results.cleanup = `Wiped ${users.count} unconfirmed users, ${sessions.count} expired sessions, ${refreshTokens.count} expired refresh tokens.`;
-  } catch (err: unknown) {
+  if (cleanupError || !counts) {
     results.cleanup = `Cleanup failed: ${
-      err instanceof Error ? err.message : "Unknown error"
+      cleanupError ? reason(cleanupError) : "Unknown error"
     }`;
+  } else {
+    const [users, sessions, refreshTokens] = counts;
+    results.cleanup = `Wiped ${users.count} unconfirmed users, ${sessions.count} expired sessions, ${refreshTokens.count} expired refresh tokens.`;
   }
 
   return NextResponse.json({

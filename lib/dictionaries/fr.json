@@ -1,5 +1,5 @@
 {
-  "metaTitle": "Auth",
+  "metaTitle": "HY13 Passkey SSO",
   "metaDescription": "Service d'authentification sécurisé sans mot de passe via Passkey et Lien Magique.",
   "welcome": "Connexion",
   "description": "Choisissez votre méthode de connexion sécurisée",
@@ -63,6 +63,8 @@
     "noPasskeys": "Vous n'avez pas encore ajouté de passkey.",
     "passkeyAdded": "Passkey ajoutée.",
     "passkeyError": "L'opération a échoué.",
+    "passkeyExists": "Cet appareil a déjà une passkey pour votre compte.",
+    "passkeyCancelled": "La création de la passkey a été annulée.",
     "rename": "Renommer",
     "remove": "Supprimer",
     "removeConfirm": "Supprimer cette passkey ?",

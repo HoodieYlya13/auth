@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { updateProfile } from "@/lib/actions/account-actions";
 import { Section } from "@/components/account/section";
 import type { AccountDict } from "@/components/account/account-dict";
+import { tryCatch } from "@/lib/utils";
 
 interface ProfileValues {
   username: string;
@@ -24,22 +24,27 @@ export function ProfileSection({
   initial: ProfileValues;
   dict: AccountDict;
 }) {
-  const router = useRouter();
   const [values, setValues] = useState<ProfileValues>(initial);
-  const [busy, setBusy] = useState(false);
+  const savedRef = useRef<ProfileValues>(initial);
+  const [isPending, startTransition] = useTransition();
 
   const set = (key: keyof ProfileValues) => (v: string) =>
     setValues((prev) => ({ ...prev, [key]: v }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setBusy(true);
-    const result = await updateProfile(values);
-    if (result.success) {
-      toast.success(dict.profileSaved);
-      router.refresh();
-    } else toast.error(result.error || dict.profileError);
-    setBusy(false);
+    const snapshot = savedRef.current;
+    const next = values;
+    savedRef.current = next;
+    toast.success(dict.profileSaved);
+    startTransition(async () => {
+      const [error, result] = await tryCatch(updateProfile(next));
+      if (error || !result || !result.success) {
+        savedRef.current = snapshot;
+        setValues(snapshot);
+        toast.error(result?.error || dict.profileError);
+      }
+    });
   };
 
   return (
@@ -84,10 +89,10 @@ export function ProfileSection({
         <div>
           <Button
             type="submit"
-            disabled={busy}
+            disabled={isPending}
             className="h-9 cursor-pointer gap-2"
           >
-            {busy && <Loader2 className="animate-spin size-4" />}
+            {isPending && <Loader2 className="animate-spin size-4" />}
             {dict.saveProfile}
           </Button>
         </div>

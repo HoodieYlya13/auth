@@ -3,6 +3,7 @@ import { jwtVerify } from "jose";
 import { prisma } from "@/lib/db";
 import { getPublicKey } from "@/lib/oidc/keys";
 import { buildIdentityClaims, parseScopes } from "@/lib/oidc/tokens";
+import { tryCatch } from "@/lib/utils";
 
 const ISSUER = process.env.ISSUER ?? "";
 
@@ -18,17 +19,14 @@ async function handle(req: NextRequest) {
   const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) return unauthorized();
 
-  let scope = "openid";
-  let sub: string | undefined;
-  try {
-    const { payload } = await jwtVerify(token, await getPublicKey(), {
-      issuer: ISSUER,
-    });
-    sub = payload.sub;
-    if (typeof payload.scope === "string") scope = payload.scope;
-  } catch {
-    return unauthorized();
-  }
+  const [error, verified] = await tryCatch(
+    jwtVerify(token, await getPublicKey(), { issuer: ISSUER }),
+  );
+  if (error || !verified) return unauthorized();
+
+  const { payload } = verified;
+  const sub = payload.sub;
+  const scope = typeof payload.scope === "string" ? payload.scope : "openid";
   if (!sub) return unauthorized();
 
   const user = await prisma.user.findUnique({ where: { id: sub } });

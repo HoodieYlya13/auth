@@ -17,3 +17,10 @@ export async function tryCatch<T, E = Error>(
     return [error as E, null];
   }
 }
+export function tryCatchSync<T, E = Error>(fn: () => T): [E, null] | [null, T] {
+  try {
+    return [null, fn()];
+  } catch (error) {
+    return [error as E, null];
+  }
+}

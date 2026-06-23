@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Fingerprint, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/actions/account-actions";
 import type { AccountDict } from "@/components/account/account-dict";
 import { LocalDate } from "@/components/local-date";
+import { tryCatch } from "@/lib/utils";
 
 interface Passkey {
   id: string;
@@ -50,51 +51,70 @@ export function PasskeysSection({
   const [busy, setBusy] = useState(false);
   const [nameDialog, setNameDialog] = useState<NameDialogState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [, startTransition] = useTransition();
+  const [optimisticPasskeys, applyOptimisticName] = useOptimistic(
+    passkeys,
+    (list, override: { id: string; name: string | null }) =>
+      list.map((pk) =>
+        pk.id === override.id ? { ...pk, name: override.name } : pk,
+      ),
+  );
 
   const handleAdd = async () => {
     setBusy(true);
-    try {
-      const begin = await beginPasskeyRegistrationAction();
-      if (!begin.success || !begin.options) {
-        toast.error(begin.error || dict.passkeyError);
-        return;
-      }
-      const response = await startRegistration({ optionsJSON: begin.options });
-      setNameDialog({ mode: "add", response, value: "" });
-    } catch {
-      toast.error(dict.passkeyError);
-    } finally {
+    const [beginError, begin] = await tryCatch(beginPasskeyRegistrationAction());
+    if (beginError || !begin || !begin.success || !begin.options) {
       setBusy(false);
+      toast.error((!beginError && begin?.error) || dict.passkeyError);
+      return;
     }
+
+    const [regError, response] = await tryCatch(
+      startRegistration({ optionsJSON: begin.options }),
+    );
+    setBusy(false);
+    if (regError || !response) {
+      const message =
+        regError?.name === "InvalidStateError"
+          ? dict.passkeyExists
+          : regError?.name === "NotAllowedError"
+            ? dict.passkeyCancelled
+            : dict.passkeyError;
+      toast.error(message);
+      return;
+    }
+    setNameDialog({ mode: "add", response, value: "" });
   };
 
   const handleSubmitName = async () => {
     if (!nameDialog) return;
     const label = nameDialog.value.trim();
-    setSaving(true);
-    try {
-      if (nameDialog.mode === "add") {
-        const result = await finishPasskeyRegistrationAction(
-          nameDialog.response,
-          label || undefined,
-        );
-        if (result.success) {
-          toast.success(dict.passkeyAdded);
-          setNameDialog(null);
-          router.refresh();
-        } else toast.error(result.error || dict.passkeyError);
-      } else {
-        const result = await renamePasskey(nameDialog.id, label);
-        if (result.success) {
-          setNameDialog(null);
-          router.refresh();
-        } else toast.error(result.error || dict.passkeyError);
-      }
-    } catch {
-      toast.error(dict.passkeyError);
-    } finally {
-      setSaving(false);
+
+    if (nameDialog.mode === "rename") {
+      const { id } = nameDialog;
+      setNameDialog(null);
+      startTransition(async () => {
+        applyOptimisticName({ id, name: label || null });
+        const [error, result] = await tryCatch(renamePasskey(id, label));
+        if (error || !result || !result.success)
+          toast.error(result?.error || dict.passkeyError);
+        else router.refresh();
+      });
+      return;
     }
+
+    setSaving(true);
+    const [error, result] = await tryCatch(
+      finishPasskeyRegistrationAction(nameDialog.response, label || undefined),
+    );
+    setSaving(false);
+    if (error || !result || !result.success) {
+      toast.error(result?.error || dict.passkeyError);
+      return;
+    }
+    toast.success(dict.passkeyAdded);
+    setNameDialog(null);
+    router.refresh();
   };
 
   const handleDelete = async (id: string) => {
@@ -129,11 +149,11 @@ export function PasskeysSection({
         </Button>
       }
     >
-      {passkeys.length === 0 ? (
+      {optimisticPasskeys.length === 0 ? (
         <p className="text-sm text-muted-foreground">{dict.noPasskeys}</p>
       ) : (
         <ul className="flex flex-col divide-y divide-border">
-          {passkeys.map((pk) => (
+          {optimisticPasskeys.map((pk) => (
             <li key={pk.id} className="flex items-center gap-3 py-3">
               <KeyRound className="size-4 text-muted-foreground shrink-0" />
               <div className="min-w-0 flex-1">
@@ -176,7 +196,7 @@ export function PasskeysSection({
           ))}
         </ul>
       )}
-      {passkeys.length === 0 && (
+      {optimisticPasskeys.length === 0 && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Fingerprint className="size-3.5" />
           {dict.passkeysHint}

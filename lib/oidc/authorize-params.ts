@@ -1,4 +1,5 @@
 import "server-only";
+import { tryCatchSync } from "@/lib/utils";
 
 const ISSUER = process.env.ISSUER ?? "http://localhost:3000";
 
@@ -12,12 +13,8 @@ export interface AuthorizeParams {
 export function parseAuthorizeReturnTo(
   returnTo: string,
 ): AuthorizeParams | null {
-  let url: URL;
-  try {
-    url = new URL(returnTo, ISSUER);
-  } catch {
-    return null;
-  }
+  const [error, url] = tryCatchSync(() => new URL(returnTo, ISSUER));
+  if (error || !url) return null;
   if (url.pathname !== "/api/oidc/authorize") return null;
   const clientId = url.searchParams.get("client_id");
   const redirectUri = url.searchParams.get("redirect_uri");

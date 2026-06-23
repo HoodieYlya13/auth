@@ -14,6 +14,7 @@ import {
 import { Fingerprint, Mail, Loader2 } from "lucide-react";
 
 import { useSearchParams } from "next/navigation";
+import { tryCatch } from "@/lib/utils";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -84,12 +85,10 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
     setActiveAction("passkey");
 
     const toastId = toast.loading(dict.toastInitiatingPasskey);
-    try {
+    const [error, outcome] = await tryCatch(async () => {
       const begin = await beginPasskeyAuthentication();
-      if (!begin.success || !begin.options || !begin.flowId) {
-        toast.error(begin.error || dict.toastErrorPasskey, { id: toastId });
-        return;
-      }
+      if (!begin.success || !begin.options || !begin.flowId)
+        return { ok: false as const, message: begin.error };
 
       const assertion = await startAuthentication({
         optionsJSON: begin.options,
@@ -100,19 +99,23 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
         locale,
         returnTo,
       );
+      if (result.success && result.redirectTo)
+        return { ok: true as const, redirectTo: result.redirectTo };
+      return { ok: false as const, message: result.error };
+    });
+    setIsSubmitting(false);
+    setActiveAction(null);
 
-      if (result.success && result.redirectTo) {
-        toast.success(dict.toastSuccessPasskey, { id: toastId });
-        window.location.href = result.redirectTo;
-        return;
-      }
-      toast.error(result.error || dict.toastErrorPasskey, { id: toastId });
-    } catch {
+    if (error || !outcome) {
       toast.error(dict.toastErrorPasskey, { id: toastId });
-    } finally {
-      setIsSubmitting(false);
-      setActiveAction(null);
+      return;
     }
+    if (outcome.ok) {
+      toast.success(dict.toastSuccessPasskey, { id: toastId });
+      window.location.href = outcome.redirectTo;
+      return;
+    }
+    toast.error(outcome.message || dict.toastErrorPasskey, { id: toastId });
   };
 
   const handleMagicLink = async () => {
