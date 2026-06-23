@@ -130,7 +130,8 @@ export async function GET(req: NextRequest) {
 
   const selfUrl = req.nextUrl.pathname + req.nextUrl.search;
   const origin = req.nextUrl.origin;
-  
+  const locale = pickLocale(req);
+
   const interactiveReturn = (() => {
     const u = new URL(selfUrl, origin);
     u.searchParams.set("_handoff", "1");
@@ -139,14 +140,14 @@ export async function GET(req: NextRequest) {
 
   const user = await getCurrentUser();
   if (!user) {
-    const login = new URL(`/${DEFAULT_LOCALE}`, origin);
+    const login = new URL(`/${locale}`, origin);
     login.searchParams.set("return_to", interactiveReturn);
     return NextResponse.redirect(login);
   }
 
   if (!user.username) {
     const reg = new URL(
-      `/${DEFAULT_LOCALE}/auth/complete-registration`,
+      `/${locale}/auth/complete-registration`,
       origin,
     );
     reg.searchParams.set("return_to", interactiveReturn);
@@ -169,7 +170,7 @@ export async function GET(req: NextRequest) {
       where: { userId_clientId: { userId: user.id, clientId: client.id } },
     });
     if (!membership) {
-      const consent = new URL(`/${DEFAULT_LOCALE}/consent`, origin);
+      const consent = new URL(`/${locale}/consent`, origin);
       consent.searchParams.set("return_to", interactiveReturn);
       return NextResponse.redirect(consent);
     }
@@ -190,7 +191,6 @@ export async function GET(req: NextRequest) {
   if (state) back.searchParams.set("state", state);
 
   if (p.get("_handoff") === "1" && !isWebRedirect(back)) {
-    const locale = pickLocale(req);
     const { handoff } = await getDictionary(locale);
     return deepLinkHandoff(back.toString(), locale, handoff);
   }
