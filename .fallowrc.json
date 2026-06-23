@@ -12,6 +12,10 @@
     {
       "file": "components/ui/button.tsx",
       "exports": ["buttonVariants"]
+    },
+    {
+      "file": "components/ui/dialog.tsx",
+      "exports": ["DialogClose", "DialogOverlay", "DialogPortal", "DialogTrigger"]
     }
   ],
   "ignoreDependencies": [

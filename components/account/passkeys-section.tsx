@@ -5,7 +5,17 @@ import { useRouter } from "next/navigation";
 import { Fingerprint, KeyRound, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { startRegistration } from "@simplewebauthn/browser";
+import type { RegistrationResponseJSON } from "@simplewebauthn/browser";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Section } from "@/components/account/section";
 import {
   beginPasskeyRegistrationAction,
@@ -25,6 +35,10 @@ interface Passkey {
   lastUsedAt: string | null;
 }
 
+type NameDialogState =
+  | { mode: "add"; response: RegistrationResponseJSON; value: string }
+  | { mode: "rename"; id: string; value: string };
+
 export function PasskeysSection({
   passkeys,
   dict,
@@ -34,6 +48,8 @@ export function PasskeysSection({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [nameDialog, setNameDialog] = useState<NameDialogState | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
     setBusy(true);
@@ -44,12 +60,7 @@ export function PasskeysSection({
         return;
       }
       const response = await startRegistration({ optionsJSON: begin.options });
-      const label = window.prompt(dict.namePrompt) ?? undefined;
-      const result = await finishPasskeyRegistrationAction(response, label);
-      if (result.success) {
-        toast.success(dict.passkeyAdded);
-        router.refresh();
-      } else toast.error(result.error || dict.passkeyError);
+      setNameDialog({ mode: "add", response, value: "" });
     } catch {
       toast.error(dict.passkeyError);
     } finally {
@@ -57,12 +68,33 @@ export function PasskeysSection({
     }
   };
 
-  const handleRename = async (id: string, current: string | null) => {
-    const name = window.prompt(dict.namePrompt, current ?? "");
-    if (name === null) return;
-    const result = await renamePasskey(id, name);
-    if (result.success) router.refresh();
-    else toast.error(result.error || dict.passkeyError);
+  const handleSubmitName = async () => {
+    if (!nameDialog) return;
+    const label = nameDialog.value.trim();
+    setSaving(true);
+    try {
+      if (nameDialog.mode === "add") {
+        const result = await finishPasskeyRegistrationAction(
+          nameDialog.response,
+          label || undefined,
+        );
+        if (result.success) {
+          toast.success(dict.passkeyAdded);
+          setNameDialog(null);
+          router.refresh();
+        } else toast.error(result.error || dict.passkeyError);
+      } else {
+        const result = await renamePasskey(nameDialog.id, label);
+        if (result.success) {
+          setNameDialog(null);
+          router.refresh();
+        } else toast.error(result.error || dict.passkeyError);
+      }
+    } catch {
+      toast.error(dict.passkeyError);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -73,6 +105,8 @@ export function PasskeysSection({
       router.refresh();
     } else toast.error(result.error || dict.passkeyError);
   };
+
+  const isAdd = nameDialog?.mode === "add";
 
   return (
     <Section
@@ -119,7 +153,13 @@ export function PasskeysSection({
               </div>
               <button
                 type="button"
-                onClick={() => handleRename(pk.id, pk.name)}
+                onClick={() =>
+                  setNameDialog({
+                    mode: "rename",
+                    id: pk.id,
+                    value: pk.name ?? "",
+                  })
+                }
                 className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 cursor-pointer"
               >
                 {dict.rename}
@@ -142,6 +182,72 @@ export function PasskeysSection({
           {dict.passkeysHint}
         </p>
       )}
+
+      <Dialog
+        open={nameDialog !== null}
+        onOpenChange={(open) => {
+          if (saving) return;
+          if (!open && !isAdd) setNameDialog(null);
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-sm"
+          showCloseButton={!isAdd}
+          onInteractOutside={(e) => {
+            if (isAdd) e.preventDefault();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (isAdd) e.preventDefault();
+          }}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleSubmitName();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{isAdd ? dict.addPasskey : dict.rename}</DialogTitle>
+              <DialogDescription>{dict.namePrompt}</DialogDescription>
+            </DialogHeader>
+            <Input
+              autoFocus
+              value={nameDialog?.value ?? ""}
+              onChange={(e) =>
+                setNameDialog((prev) =>
+                  prev ? { ...prev, value: e.target.value } : prev,
+                )
+              }
+              placeholder={dict.namePlaceholder}
+              maxLength={64}
+              className="my-4 h-9"
+            />
+            <DialogFooter>
+              {!isAdd && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => setNameDialog(null)}
+                  className="cursor-pointer"
+                >
+                  {dict.cancel}
+                </Button>
+              )}
+              <Button
+                type="submit"
+                size="sm"
+                disabled={saving}
+                className="cursor-pointer gap-1.5"
+              >
+                {saving && <Loader2 className="animate-spin size-4" />}
+                {dict.save}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Section>
   );
 }

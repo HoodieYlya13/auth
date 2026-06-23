@@ -1,0 +1,71 @@
+{
+  "routing": {
+    "repo_name": "auth",
+    "project_name": "Self-Hosted OpenID Connect Identity Provider",
+    "hero_image": ""
+  },
+  "project_meta": {
+    "role": "Lead Full-Stack Security & Identity Engineer",
+    "development_phase": "Production",
+    "languages": ["TypeScript", "JavaScript", "SQL", "HTML", "CSS"],
+    "frameworks_and_tools": [
+      "Next.js 16 (App Router, cacheComponents / PPR)",
+      "React 19 (React Compiler)",
+      "Prisma 7 ORM (driver adapters)",
+      "PostgreSQL (Neon)",
+      "jose (RS256 / JWKS)",
+      "SimpleWebAuthn (WebAuthn / passkeys)",
+      "Upstash Redis",
+      "Resend API",
+      "Cloudflare Turnstile",
+      "Tailwind CSS v4",
+      "Radix UI",
+      "Zod",
+      "bun"
+    ]
+  },
+  "comprehensive_description": "A small, self-hosted OpenID Connect identity provider — a 'mini-Keycloak' — that centralizes authentication for first- and third-party applications. Users authenticate once with a passkey (WebAuthn) or a magic link, then are redirected back to the calling app with standard OIDC tokens whose access token carries their identity and per-app roles. It implements the full standards-compliant Authorization Code + PKCE (S256) flow with RS256-signed, self-contained access/ID tokens, a discovery document and JWKS endpoint, rotating refresh tokens with replay (reuse) detection, RP-initiated logout, a one-time-per-app consent screen, and a per-client role-based access-control model administered from a built-in dashboard. Built on Next.js 16 (App Router with cacheComponents/PPR and the React 19 compiler) on bun, it uses Prisma 7 over PostgreSQL (Neon) through the @prisma/adapter-pg driver adapter with UUIDv7 identifiers for durable state, and Upstash Redis (with TTLs) for ephemeral state — WebAuthn challenges, magic-link tokens, and short-lived OIDC authorization codes — so the database holds only durable rows. Email magic links are dispatched via Resend, sign-in is shielded by Upstash Redis rate limiting and Cloudflare Turnstile, and the whole stack runs at $0/month on free tiers. It is not a toy: it is the live identity provider behind a separate Confluence-RAG product, issuing the role-bearing access tokens that an MCP server verifies for RBAC.",
+  "engineering_highlights": [
+    "Standards-Compliant OIDC Authorization Server: Implemented the full OpenID Connect Authorization Code + PKCE (S256-only) flow from scratch with jose — discovery document, JWKS endpoint, RS256-signed self-contained access and ID tokens (identity claims + per-audience `roles` + an `admin` boolean), UserInfo, and RP-initiated logout — so any off-the-shelf OIDC client library integrates without custom glue.",
+    "Refresh-Token Rotation with Reuse Detection: Engineered a rotating refresh-token family model (hashed tokens, family id, used/revoked flags) where presenting an already-rotated token is treated as a replay and revokes the entire token family, containing stolen-token blast radius while keeping legitimate long-lived sessions seamless.",
+    "Passwordless Identity: Built dual passwordless auth — SimpleWebAuthn passkeys (platform authenticators, signature verification, per-credential management) plus Resend magic links that verify the email and create the account — backed by DB-stored, httpOnly, individually revocable login sessions.",
+    "Per-Client RBAC with Env-Driven Admin: Designed a per-application role model — each registered client defines its own role palette and a `defaultRoles` set auto-assigned on first link — assigned from an admin dashboard, while the privileged `admin` flag is computed from an `ADMIN_EMAIL` env value rather than stored, so rotating the env rotates super-admin with zero database writes.",
+    "Free-Tier Operational Hardening: Split state across PostgreSQL (durable, UUIDv7) and Upstash Redis (ephemeral, TTL-bound challenges/codes/tokens), guarded actions with Redis rate limiting and Turnstile, and added an authorized /api/cron endpoint (daily via GitHub Actions) that keep-warms Postgres + Redis against cold starts and transactionally purges abandoned signups, expired sessions, and expired refresh tokens."
+  ],
+  "measurable_metrics": {
+    "execution_latency": "Short-lived, self-contained RS256 access/ID tokens (~15 min TTL) verifiable offline against the JWKS with no introspection round-trip; refresh tokens valid 30 days with rotation on every use; sliding-window Redis rate limiting adds single-digit-millisecond overhead per auth action.",
+    "ui_performance": "Next.js 16 cacheComponents (Partial Prerendering) streams dynamic, cookie-dependent sections while static shells prerender instantly, and the React 19 compiler removes manual memoization; account passkey management uses an accessible Radix modal with optimistic refresh and Sonner toasts.",
+    "operational_cost": "$0/month runtime on free tiers — Neon PostgreSQL (pooled + direct/migration URLs), Upstash Redis, Resend, Cloudflare Turnstile, and Vercel — kept warm and clean by a daily GitHub Actions cron."
+  },
+  "star_challenges": [
+    {
+      "situation": "Long-lived refresh tokens are the highest-value secret an identity provider holds: if one is exfiltrated, an attacker can silently mint access tokens indefinitely, and naive rotation schemes still let a stolen token be replayed once.",
+      "action": "Modeled refresh tokens as rotating families — each token is stored only as a SHA-256 hash with a family id, expiry, and used/revoked flags. On every refresh the presented token is rotated to a fresh one; if a token that has already been rotated (used) is ever presented again, it is treated as a replay and the entire family is revoked in a single transaction, logging the legitimate user out everywhere.",
+      "result": "Bounded the blast radius of a stolen refresh token to a single use and a forced re-authentication, achieving Keycloak/Auth0-grade reuse-detection semantics on a self-hosted, zero-cost stack, verified end-to-end by an automated reuse-detection check.",
+      "inline_image": ""
+    },
+    {
+      "situation": "Next.js 16's cacheComponents (Partial Prerendering) changes how authentication guards behave: a redirect() in a layout does not reliably halt rendering or data fetching in the child page, so a protected page could still execute its queries and stream privileged data before the redirect lands.",
+      "action": "Moved every authorization guard out of shared layouts and into each protected page, checking the session and required state (verified email, completed username, admin identity) before any data fetch, and kept ephemeral/cookie-dependent reads inside the dynamic boundary so the static shell can still prerender.",
+      "result": "Eliminated the data-leak window entirely while preserving Partial Prerendering's instant static shells — protected pages never touch the database until the request is proven authorized.",
+      "inline_image": ""
+    },
+    {
+      "situation": "An identity provider needs to serve real third-party applications, not just a demo login form — those apps must be able to register, receive role-scoped tokens, and trust the issuer with any standard OIDC client.",
+      "action": "Built an admin dashboard to register clients (redirect URIs, post-logout URIs, trusted flag, per-app role palette, default roles, optional hashed client secret) and assign user roles, then wired the issuer to embed each client's resolved roles into the audience-scoped access token; integrated it as the live SSO for a separate Confluence-RAG product where a Tauri desktop client signs in via PKCE and an MCP server verifies the role-bearing access token (alongside legacy pre-shared tokens) for RBAC.",
+      "result": "Turned the project from a template into a production identity provider with a real downstream consumer — one user account, role-aware tokens, and a standards-based integration surface that any OIDC library can consume.",
+      "inline_image": ""
+    },
+    {
+      "situation": "Deploying a stateful auth stack entirely on free tiers invites Neon PostgreSQL cold starts after idle periods, database pollution from abandoned magic-link signups, and unbounded growth of expired sessions and refresh tokens.",
+      "action": "Added an /api/cron endpoint guarded by a Bearer CRON_SECRET and driven by a daily GitHub Actions workflow that pings Postgres and Redis to keep them warm, then runs a single transaction deleting unconfirmed users (no username and no passkey older than 24h), expired login sessions, and expired refresh tokens.",
+      "result": "Eliminated cold starts on the critical login path and automated 100% of stale-row cleanup, keeping a lean schema and predictable latency at zero infrastructure cost.",
+      "inline_image": ""
+    }
+  ],
+  "architectural_deep_dive": {
+    "text": "State is deliberately split by lifetime. Durable identity data — users, WebAuthn credentials, registered clients, app memberships (consent links), rotating refresh tokens, and login sessions — lives in PostgreSQL (Neon) with UUIDv7 primary keys, accessed through Prisma 7's @prisma/adapter-pg driver adapter (pooled URL for reads, a direct URL for migrations). Ephemeral, security-sensitive state — WebAuthn challenges, magic-link tokens, and OIDC authorization codes (bound to the PKCE challenge, user, client, nonce, and scope for ~60s) — lives only in Upstash Redis with TTLs, so it self-expires and never pollutes the database. The OIDC surface is a set of App Router route handlers: /api/oidc/authorize validates client, redirect_uri, PKCE, scope, state, and nonce, then requires a login session (redirecting to sign-in with a return path), requires a completed username, and shows consent for non-trusted clients before minting a short-lived authorization code; /api/oidc/token exchanges that code (verifying the PKCE code_verifier) for RS256 access/ID/refresh tokens or rotates a refresh token; /api/oidc/userinfo and /api/oidc/logout complete the standard set, with discovery and JWKS exposed under /.well-known via rewrites. RS256 keys are loaded from base64-encoded PEM in the environment, and the ISSUER env both signs tokens and builds endpoint URLs. The web app itself runs on Next.js 16 with cacheComponents (Partial Prerendering): authorization guards live inside each page (not layouts) so static shells prerender while authenticated, cookie-dependent reads stream within the dynamic boundary. Sign-in actions are protected by Upstash rate limiting and Cloudflare Turnstile, and a daily GitHub Actions cron hits /api/cron to keep the data stores warm and purge stale rows.",
+    "illustration": null
+  },
+  "lessons_learned": "Building a standards-compliant OpenID Connect provider from primitives — jose for RS256/JWKS, SimpleWebAuthn for passkeys, Redis for ephemeral code/token state — made the security model concrete in a way that adopting a black-box auth SaaS never does: PKCE binding, refresh rotation with reuse detection, and audience-scoped role claims stop being buzzwords and become code you can reason about and test. Next.js 16's cacheComponents also reframed authorization as a data-fetching concern rather than a routing one; the key insight was that guards belong at the page/data boundary, not in layouts, because Partial Prerendering will happily stream a child page that a layout redirect was supposed to block. Finally, separating durable state (Postgres, UUIDv7) from ephemeral state (Redis with TTLs) and automating keep-warm plus cleanup proved you can run a genuinely production-grade, multi-tenant identity provider — one that real third-party apps depend on — at zero monthly cost without compromising on the security guarantees that matter."
+}
