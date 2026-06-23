@@ -45,8 +45,8 @@
   },
   "handoff": {
     "title": "You're signed in",
-    "message": "Return to the app to continue. You can close this window.",
-    "button": "Return to the app"
+    "message": "Return to the app to continue. You can close this window, or manage your account below.",
+    "button": "Go to your account"
   },
   "account": {
     "title": "Your account",

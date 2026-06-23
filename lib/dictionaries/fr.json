@@ -45,8 +45,8 @@
   },
   "handoff": {
     "title": "Vous êtes connecté",
-    "message": "Retournez à l'application pour continuer. Vous pouvez fermer cette fenêtre.",
-    "button": "Retourner à l'application"
+    "message": "Retournez à l'application pour continuer. Vous pouvez fermer cette fenêtre ou gérer votre compte ci-dessous.",
+    "button": "Accéder à votre compte"
   },
   "account": {
     "title": "Votre compte",

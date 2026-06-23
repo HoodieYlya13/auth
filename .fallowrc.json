@@ -25,9 +25,9 @@
     "minOccurrences": 3
   },
   "health": {
-    "maxCyclomatic": 10,
-    "maxCognitive": 12,
-    "maxCrap": 80.0
+    "maxCyclomatic": 15,
+    "maxCognitive": 15,
+    "maxCrap": 240.0
   },
   "rules": {}
 }

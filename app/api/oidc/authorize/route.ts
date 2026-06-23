@@ -70,11 +70,10 @@ function deepLinkHandoff(
   <main>
     <h1>${escapeHtml(t.title)}</h1>
     <p>${escapeHtml(t.message)}</p>
-    <a id="link">${escapeHtml(t.button)}</a>
+    <a href="/${lang}/account">${escapeHtml(t.button)}</a>
   </main>
   <script>
     var target = ${json};
-    document.getElementById("link").setAttribute("href", target);
     location.href = target;
     setTimeout(function () { try { window.close(); } catch (e) {} }, 400);
   </script>
