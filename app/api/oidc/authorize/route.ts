@@ -9,10 +9,31 @@ import {
   hasLocale,
   type Locale,
 } from "@/lib/dictionaries/dictionaries";
+import { tryCatchSync } from "@/lib/utils";
 
 const DEFAULT_LOCALE = "en";
 
 function pickLocale(req: NextRequest): Locale {
+  const uiLocales = req.nextUrl.searchParams.get("ui_locales");
+  if (uiLocales) {
+    const preferences = uiLocales.split(/\s+/);
+    for (const pref of preferences) {
+      const clean = pref.trim().slice(0, 2).toLowerCase();
+      if (hasLocale(clean)) return clean;
+    }
+  }
+
+  const redirectUri = req.nextUrl.searchParams.get("redirect_uri");
+  if (redirectUri) {
+    const [err, url] = tryCatchSync(() => new URL(redirectUri));
+    if (!err && url) {
+      const segments = url.pathname.split("/").filter(Boolean);
+      const firstSegment = segments[0]?.toLowerCase() ?? "";
+      if (hasLocale(firstSegment)) return firstSegment;
+      return DEFAULT_LOCALE;
+    }
+  }
+
   const first =
     req.headers
       .get("accept-language")
@@ -146,10 +167,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (!user.username) {
-    const reg = new URL(
-      `/${locale}/auth/complete-registration`,
-      origin,
-    );
+    const reg = new URL(`/${locale}/auth/complete-registration`, origin);
     reg.searchParams.set("return_to", interactiveReturn);
     return NextResponse.redirect(reg);
   }
