@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateProfile } from "@/lib/actions/account-actions";
 import { Section } from "@/components/account/section";
+import { AvatarPicker } from "@/components/account/avatar-picker";
 import type { AccountDict } from "@/components/account/account-dict";
 import { tryCatch } from "@/lib/utils";
 
@@ -19,9 +20,11 @@ interface ProfileValues {
 
 export function ProfileSection({
   initial,
+  avatarUrl,
   dict,
 }: {
   initial: ProfileValues;
+  avatarUrl: string | null;
   dict: AccountDict;
 }) {
   const [values, setValues] = useState<ProfileValues>(initial);
@@ -50,6 +53,13 @@ export function ProfileSection({
   return (
     <Section title={dict.profileTitle} description={dict.profileDescription}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <Labelled label={dict.photoLabel}>
+          <AvatarPicker
+            initialUrl={avatarUrl}
+            fallback={(initial.firstName || initial.username).charAt(0)}
+            dict={dict}
+          />
+        </Labelled>
         <Labelled label={dict.usernameLabel}>
           <Input
             value={values.username}

@@ -16,6 +16,11 @@ import {
   finishPasskeyRegistration,
   startPasskeyRegistration,
 } from "@/lib/auth/webauthn";
+import {
+  AVATAR_MAX_BYTES,
+  avatarPath,
+  detectImageType,
+} from "@/lib/avatar/avatar";
 
 const DEFAULT_LOCALE = "en";
 
@@ -167,6 +172,57 @@ export async function updateProfile(
     throw error;
   }
 
+  return { success: true };
+}
+
+export interface AvatarResult extends ActionResult {
+  avatarUrl?: string | null;
+}
+
+export async function uploadAvatar(formData: FormData): Promise<AvatarResult> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "You are not signed in." };
+
+  const file = formData.get("avatar");
+  if (!(file instanceof File) || file.size === 0)
+    return { success: false, error: "Please choose an image." };
+  if (file.size > AVATAR_MAX_BYTES)
+    return { success: false, error: "That image is too large." };
+
+  const data = new Uint8Array(await file.arrayBuffer());
+  const contentType = detectImageType(data);
+  if (!contentType)
+    return { success: false, error: "Use a JPEG, PNG, or WebP image." };
+
+  const avatarUpdatedAt = new Date();
+  await prisma.$transaction([
+    prisma.avatar.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, data, contentType },
+      update: { data, contentType },
+    }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: { avatarUpdatedAt },
+    }),
+  ]);
+
+  return {
+    success: true,
+    avatarUrl: avatarPath({ id: user.id, avatarUpdatedAt }),
+  };
+}
+
+export async function removeAvatar(): Promise<ActionResult> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "You are not signed in." };
+  await prisma.$transaction([
+    prisma.avatar.deleteMany({ where: { userId: user.id } }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: { avatarUpdatedAt: null },
+    }),
+  ]);
   return { success: true };
 }
 

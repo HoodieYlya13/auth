@@ -20,6 +20,8 @@ model User {
   firstName       String?
   lastName        String?
   birthday        DateTime? @db.Date
+  // Set whenever the profile photo changes; null means no photo. Doubles as a cache-busting version.
+  avatarUpdatedAt DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -27,6 +29,16 @@ model User {
   memberships   AppMembership[]
   refreshTokens RefreshToken[]
   sessions      Session[]
+  avatar        Avatar?
+}
+
+// Profile photo bytes, kept out of User so session lookups don't load them.
+model Avatar {
+  userId      String   @id @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data        Bytes
+  contentType String
+  updatedAt   DateTime @updatedAt
 }
 
 // A registered WebAuthn passkey belonging to a user.

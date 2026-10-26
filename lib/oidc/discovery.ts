@@ -51,6 +51,7 @@ export function getDiscoveryDocument() {
       "family_name",
       "name",
       "birthdate",
+      "picture",
       "roles",
       "admin",
     ],

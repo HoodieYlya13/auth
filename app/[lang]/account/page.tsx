@@ -4,6 +4,7 @@ import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/oidc/tokens";
 import { prisma } from "@/lib/db";
+import { avatarPath } from "@/lib/avatar/avatar";
 import { ProfileSection } from "@/components/account/profile-section";
 import { PasskeysSection } from "@/components/account/passkeys-section";
 import { AppsSection } from "@/components/account/apps-section";
@@ -65,6 +66,7 @@ async function ProfileSectionWrapper({ lang, dict }: { lang: string; dict: Accou
           ? user.birthday.toISOString().slice(0, 10)
           : "",
       }}
+      avatarUrl={avatarPath(user)}
       dict={dict}
     />
   );

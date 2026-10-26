@@ -1,6 +1,7 @@
 import "server-only";
 import { SignJWT } from "jose";
 import { getPrivateKey, SIGNING_ALG, SIGNING_KID } from "@/lib/oidc/keys";
+import { avatarUrl } from "@/lib/avatar/avatar";
 import type { User } from "@/lib/generated/prisma/client";
 
 const ISSUER = process.env.ISSUER ?? "";
@@ -33,6 +34,8 @@ export function buildIdentityClaims(
     if (name) claims.name = name;
     if (user.birthday)
       claims.birthdate = user.birthday.toISOString().slice(0, 10);
+    const picture = avatarUrl(user);
+    if (picture) claims.picture = picture;
   }
   return claims;
 }
