@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getAdminUser } from "@/lib/auth/admin";
 import { randomToken, sha256Base64Url } from "@/lib/crypto";
-import { redirectUriProblem } from "@/lib/oidc/clients";
+import { homeUrlProblem, redirectUriProblem } from "@/lib/oidc/clients";
 import { SUPPORTED_SCOPES } from "@/lib/oidc/discovery";
 
 function slugify(name: string): string {
@@ -28,6 +28,7 @@ const clientSchema = z.object({
   name: z.string().trim().min(1, "Name is required.").max(80),
   redirectUris: z.string(),
   postLogoutRedirectUris: z.string().optional(),
+  homeUrl: z.string().trim().optional(),
   roles: z.string().optional(),
   defaultRoles: z.string().optional(),
   allowedScopes: z.string().optional(),
@@ -45,6 +46,11 @@ function checkClient(data: z.infer<typeof clientSchema>) {
     const problem = redirectUriProblem(uri);
     if (problem) return { error: problem } as const;
   }
+  const homeUrl = data.homeUrl || null;
+  if (homeUrl) {
+    const problem = homeUrlProblem(homeUrl, redirectUris);
+    if (problem) return { error: problem } as const;
+  }
 
   const allowedScopes = parseLines(data.allowedScopes);
   const unknownScope = allowedScopes.find((s) => !SUPPORTED_SCOPES.includes(s));
@@ -59,13 +65,14 @@ function checkClient(data: z.infer<typeof clientSchema>) {
   if (unknown)
     return { error: `"${unknown}" is not a valid role for this app.` } as const;
 
-  return { redirectUris, postLogoutRedirectUris, allowedScopes, roles, defaultRoles } as const;
+  return { redirectUris, postLogoutRedirectUris, homeUrl, allowedScopes, roles, defaultRoles } as const;
 }
 
 export interface ClientInput {
   name: string;
   redirectUris: string;
   postLogoutRedirectUris?: string;
+  homeUrl?: string;
   roles?: string;
   defaultRoles?: string;
   allowedScopes?: string;
@@ -89,7 +96,7 @@ export async function createClient(
     return { success: false, error: parsed.error.issues[0]?.message };
   const checked = checkClient(parsed.data);
   if ("error" in checked) return { success: false, error: checked.error };
-  const { redirectUris, postLogoutRedirectUris, allowedScopes, roles, defaultRoles } = checked;
+  const { redirectUris, postLogoutRedirectUris, homeUrl, allowedScopes, roles, defaultRoles } = checked;
 
   let secret: string | undefined;
   let clientSecretHash: string | undefined;
@@ -106,6 +113,7 @@ export async function createClient(
       name: parsed.data.name,
       redirectUris,
       postLogoutRedirectUris,
+      homeUrl,
       trusted: Boolean(parsed.data.trusted),
       clientSecretHash,
       ...(roles.length ? { roles } : {}),
@@ -135,6 +143,7 @@ export async function updateClient(
       name: parsed.data.name,
       redirectUris: checked.redirectUris,
       postLogoutRedirectUris: checked.postLogoutRedirectUris,
+      homeUrl: checked.homeUrl,
       trusted: Boolean(parsed.data.trusted),
       roles: checked.roles,
       defaultRoles: checked.defaultRoles,

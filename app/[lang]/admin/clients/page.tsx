@@ -26,6 +26,7 @@ export default async function Page({
         name: c.name,
         redirectUris: c.redirectUris,
         postLogoutRedirectUris: c.postLogoutRedirectUris,
+        homeUrl: c.homeUrl,
         trusted: c.trusted,
         roles: c.roles,
         defaultRoles: c.defaultRoles,

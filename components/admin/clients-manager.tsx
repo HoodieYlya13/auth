@@ -22,6 +22,7 @@ interface ClientView {
   name: string;
   redirectUris: string[];
   postLogoutRedirectUris: string[];
+  homeUrl: string | null;
   trusted: boolean;
   roles: string[];
   defaultRoles: string[];
@@ -237,6 +238,7 @@ function ClientForm({
   const [postLogout, setPostLogout] = useState(
     (initial?.postLogoutRedirectUris ?? []).join("\n"),
   );
+  const [homeUrl, setHomeUrl] = useState(initial?.homeUrl ?? "");
   const [roles, setRoles] = useState(
     (initial?.roles ?? ["USER", "ADMIN"]).join(", "),
   );
@@ -263,6 +265,7 @@ function ClientForm({
           name,
           redirectUris,
           postLogoutRedirectUris: postLogout,
+          homeUrl,
           roles,
           defaultRoles,
           allowedScopes: scopes,
@@ -296,6 +299,15 @@ function ClientForm({
           onChange={(e) => setPostLogout(e.target.value)}
           rows={2}
           className="w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm"
+        />
+      </FormRow>
+      <FormRow label={dict.formHomeUrl} hint={dict.formHomeUrlHint}>
+        <Input
+          type="url"
+          value={homeUrl}
+          onChange={(e) => setHomeUrl(e.target.value)}
+          placeholder="https://"
+          className="h-9"
         />
       </FormRow>
       <div className="grid grid-cols-2 gap-3">

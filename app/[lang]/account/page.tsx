@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck } from "lucide-react";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/oidc/tokens";
@@ -47,6 +47,45 @@ async function AdminDashboardButton({ lang, dict }: { lang: string; dict: Accoun
       <ShieldCheck className="size-4" />
       {dict.adminDashboard}
     </Link>
+  );
+}
+
+/**
+ * "Back to {app}" for users who opened their account from an app. The app only
+ * names itself (?client_id=); the link target is the homeUrl the admin
+ * registered for it, never a URL from the query string, so this can't be used
+ * as an open redirect. Shown only for apps the user has linked.
+ */
+async function BackToAppLink({
+  searchParams,
+  dict,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  dict: AccountDict;
+}) {
+  const { client_id } = await searchParams;
+  if (typeof client_id !== "string" || !client_id) return null;
+  const session = await getSession();
+  if (!session) return null;
+
+  const client = await prisma.client.findFirst({
+    where: {
+      clientId: client_id,
+      homeUrl: { not: null },
+      memberships: { some: { userId: session.user.id } },
+    },
+    select: { name: true, homeUrl: true },
+  });
+  if (!client?.homeUrl) return null;
+
+  return (
+    <a
+      href={client.homeUrl}
+      className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+    >
+      <ArrowLeft className="size-4" />
+      {dict.backToApp.replace("{app}", client.name)}
+    </a>
   );
 }
 
@@ -145,7 +184,10 @@ async function SessionsSectionWrapper({ lang, dict }: { lang: string; dict: Acco
   );
 }
 
-export default async function Page({ params }: PageProps<"/[lang]/account">) {
+export default async function Page({
+  params,
+  searchParams,
+}: PageProps<"/[lang]/account">) {
   const { lang } = await params;
   if (!hasLocale(lang)) redirect("/en");
 
@@ -155,6 +197,9 @@ export default async function Page({ params }: PageProps<"/[lang]/account">) {
   return (
     <main className="min-h-screen min-h-svh bg-background px-4 py-12">
       <div className="mx-auto w-full max-w-2xl flex flex-col gap-6">
+        <Suspense fallback={null}>
+          <BackToAppLink searchParams={searchParams} dict={t} />
+        </Suspense>
         <header className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>

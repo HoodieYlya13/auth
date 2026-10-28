@@ -69,6 +69,8 @@ model Client {
   postLogoutRedirectUris String[]
   trusted                Boolean  @default(false) // first-party: skip consent
   logoUrl                String?
+  // Where the account page's "Back to app" link points (?client_id=...). Must share an origin with a redirect URI.
+  homeUrl                String?
   roles                  String[] @default(["USER", "ADMIN"]) // valid role names for this app
   defaultRoles           String[] @default(["USER"]) // roles auto-assigned to a new member on link
   allowedScopes          String[] @default(["openid", "profile", "email", "offline_access"])

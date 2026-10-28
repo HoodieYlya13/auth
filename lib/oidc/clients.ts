@@ -57,3 +57,33 @@ export function redirectUriProblem(uri: string): string | null {
     return `"${uri}" must not contain a fragment (#).`;
   return null;
 }
+
+/**
+ * Why a home URL can't be registered, or null when it can. It is shown as a
+ * link on the account page, so it must be a web URL (https, or http on
+ * localhost) on the same origin as one of the app's redirect URIs.
+ */
+export function homeUrlProblem(
+  uri: string,
+  redirectUris: string[],
+): string | null {
+  let url: URL;
+  try {
+    url = new URL(uri);
+  } catch {
+    return `"${uri}" is not an absolute URL.`;
+  }
+  const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && local))
+    return `"${uri}" must use https.`;
+  const origins = redirectUris.flatMap((r) => {
+    try {
+      return [new URL(r).origin];
+    } catch {
+      return [];
+    }
+  });
+  if (!origins.includes(url.origin))
+    return `"${uri}" must be on the same origin as a redirect URI.`;
+  return null;
+}
