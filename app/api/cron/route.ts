@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getRedisOrNull } from "@/lib/redis";
 import { tryCatch } from "@/lib/utils";
+import { safeEqual } from "@/lib/crypto";
 
 function reason(error: Error): string {
   return error.message || "Unknown error";
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     );
 
   const authHeader = req.headers.get("authorization");
-  if (authHeader !== `Bearer ${cronSecret}`)
+  if (!safeEqual(authHeader ?? "", `Bearer ${cronSecret}`))
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const results: {

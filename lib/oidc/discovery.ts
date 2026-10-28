@@ -13,6 +13,8 @@ const endpoints = {
 
 export const SUPPORTED_SCOPES = [
   "openid",
+  // Username, first name and photo only (see buildIdentityClaims).
+  "public_profile",
   "profile",
   "email",
   "offline_access",

@@ -38,10 +38,16 @@
     "deny": "Cancel",
     "scopesTitle": "This will share",
     "scopeOpenid": "Confirmation of your identity",
+    "scopePublicProfile": "Your username, first name, and profile photo",
     "scopeProfile": "Your name, username, birthday, and profile photo",
     "scopeEmail": "Your email address",
     "scopeOffline": "Keeping you signed in",
     "error": "Something went wrong. Please try again."
+  },
+  "verify": {
+    "title": "Sign in?",
+    "message": "Continue to sign in as {email}. If you didn't ask for this link, close this page.",
+    "button": "Continue"
   },
   "handoff": {
     "title": "You're signed in",

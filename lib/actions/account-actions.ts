@@ -6,6 +6,7 @@ import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { tryCatch } from "@/lib/utils";
+import { safeReturnTo } from "@/lib/redirect";
 import {
   destroySession,
   getCurrentUser,
@@ -23,13 +24,6 @@ import {
 } from "@/lib/avatar/avatar";
 
 const DEFAULT_LOCALE = "en";
-
-function safeReturnTo(returnTo: string | undefined): string | undefined {
-  if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
-    return returnTo;
-  }
-  return undefined;
-}
 
 const profileSchema = z.object({
   username: z

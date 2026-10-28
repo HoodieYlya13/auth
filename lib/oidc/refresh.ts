@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { randomToken, sha256Base64Url } from "@/lib/crypto";
 
 const TTL = Number(process.env.REFRESH_TOKEN_TTL ?? 2592000); // 30 days
+/** Reuse this soon after rotation is treated as a race, not theft. */
+const REUSE_GRACE_MS = 10_000;
 
 export async function issueRefreshToken(opts: {
   userId: string;
@@ -36,6 +38,15 @@ export async function rotateRefreshToken(
   });
   if (!record) return { ok: false };
 
+  // Rotated moments ago: a second tab or a retry refreshing at the same time,
+  // not a stolen token. Refused, but the family stays valid.
+  if (
+    record.usedAt &&
+    !record.revoked &&
+    Date.now() - record.usedAt.getTime() < REUSE_GRACE_MS
+  )
+    return { ok: false };
+
   if (record.revoked || record.usedAt || record.expiresAt < new Date()) {
     await prisma.refreshToken.updateMany({
       where: { familyId: record.familyId },
@@ -44,10 +55,12 @@ export async function rotateRefreshToken(
     return { ok: false };
   }
 
-  await prisma.refreshToken.update({
-    where: { id: record.id },
+  // Claimed atomically: of two requests racing with the same token, only one rotates it.
+  const claimed = await prisma.refreshToken.updateMany({
+    where: { id: record.id, usedAt: null, revoked: false },
     data: { usedAt: new Date() },
   });
+  if (claimed.count !== 1) return { ok: false };
 
   const token = await issueRefreshToken({
     userId: record.userId,

@@ -3,12 +3,8 @@ import { UserPlus } from "lucide-react";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { getCurrentUser } from "@/lib/auth/session";
 import { CompleteRegistrationForm } from "@/components/auth/complete-registration-form";
+import { safeReturnTo } from "@/lib/redirect";
 import { Suspense } from "react";
-
-function safeReturnTo(value: string | undefined): string | undefined {
-  if (value && value.startsWith("/") && !value.startsWith("//")) return value;
-  return undefined;
-}
 
 function RegistrationFormSkeleton() {
   return (

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { safeReturnTo } from "@/lib/redirect";
 
 const LOCALES = ["en", "fr"];
 const DEFAULT_LOCALE = "en";
@@ -24,15 +25,10 @@ export function proxy(req: NextRequest) {
   );
   if (!isProtected) {
     if (rest === "/" && req.cookies.has(SESSION_COOKIE)) {
-      const returnTo = req.nextUrl.searchParams.get("return_to");
-      const safe =
-        returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
-          ? returnTo
-          : undefined;
-      const url = req.nextUrl.clone();
-      url.pathname = safe ?? `/${locale}/account`;
-      url.search = "";
-      return NextResponse.redirect(url);
+      const safe = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
+      return NextResponse.redirect(
+        new URL(safe ?? `/${locale}/account`, req.nextUrl.origin),
+      );
     }
     return NextResponse.next();
   }

@@ -59,8 +59,8 @@ export async function finishPasskeyRegistration(
   response: RegistrationResponseJSON,
   label?: string,
 ): Promise<void> {
-  const redis = getRedis();
-  const expectedChallenge = await redis.get<string>(regKey(userId));
+  // Single use, consumed in one step.
+  const expectedChallenge = await getRedis().getdel<string>(regKey(userId));
   if (!expectedChallenge) throw new Error("Registration challenge expired");
 
   const verification = await verifyRegistrationResponse({
@@ -70,7 +70,6 @@ export async function finishPasskeyRegistration(
     expectedRPID: RP_ID,
     requireUserVerification: false,
   });
-  await redis.del(regKey(userId));
 
   if (!verification.verified || !verification.registrationInfo)
     throw new Error("Passkey registration could not be verified");
@@ -111,10 +110,8 @@ export async function finishPasskeyAuthentication(
   flowId: string,
   response: AuthenticationResponseJSON,
 ): Promise<string> {
-  const redis = getRedis();
-  const expectedChallenge = await redis.get<string>(authKey(flowId));
+  const expectedChallenge = await getRedis().getdel<string>(authKey(flowId));
   if (!expectedChallenge) throw new Error("Authentication challenge expired");
-  await redis.del(authKey(flowId));
 
   const credential = await prisma.credential.findUnique({
     where: { credentialId: response.id },

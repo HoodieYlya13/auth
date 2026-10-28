@@ -11,6 +11,7 @@ interface ConsentDict {
   deny: string;
   scopesTitle: string;
   scopeOpenid: string;
+  scopePublicProfile: string;
   scopeProfile: string;
   scopeEmail: string;
   scopeOffline: string;
@@ -19,6 +20,7 @@ interface ConsentDict {
 
 const SCOPE_KEYS: Record<string, keyof ConsentDict> = {
   openid: "scopeOpenid",
+  public_profile: "scopePublicProfile",
   profile: "scopeProfile",
   email: "scopeEmail",
   offline_access: "scopeOffline",

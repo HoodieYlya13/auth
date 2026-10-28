@@ -1,8 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { prisma } from "@/lib/db";
-import { getPublicKey } from "@/lib/oidc/keys";
-import { buildIdentityClaims, parseScopes } from "@/lib/oidc/tokens";
+import { getPublicKey, SIGNING_ALG } from "@/lib/oidc/keys";
+import {
+  ACCESS_TOKEN_TYP,
+  buildIdentityClaims,
+  parseScopes,
+} from "@/lib/oidc/tokens";
 import { tryCatch } from "@/lib/utils";
 
 const ISSUER = process.env.ISSUER ?? "";
@@ -20,7 +24,12 @@ async function handle(req: NextRequest) {
   if (!token) return unauthorized();
 
   const [error, verified] = await tryCatch(
-    jwtVerify(token, await getPublicKey(), { issuer: ISSUER }),
+    // Access tokens only: an ID token has the same claims but isn't meant for APIs.
+    jwtVerify(token, await getPublicKey(), {
+      issuer: ISSUER,
+      algorithms: [SIGNING_ALG],
+      typ: ACCESS_TOKEN_TYP,
+    }),
   );
   if (error || !verified) return unauthorized();
 

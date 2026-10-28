@@ -38,10 +38,16 @@
     "deny": "Annuler",
     "scopesTitle": "Cela partagera",
     "scopeOpenid": "La confirmation de votre identité",
+    "scopePublicProfile": "Votre nom d'utilisateur, votre prénom et votre photo de profil",
     "scopeProfile": "Votre nom, nom d'utilisateur, date de naissance et photo de profil",
     "scopeEmail": "Votre adresse e-mail",
     "scopeOffline": "Le maintien de votre connexion",
     "error": "Une erreur est survenue. Veuillez réessayer."
+  },
+  "verify": {
+    "title": "Se connecter ?",
+    "message": "Continuez pour vous connecter avec {email}. Si vous n'avez pas demandé ce lien, fermez cette page.",
+    "button": "Continuer"
   },
   "handoff": {
     "title": "Vous êtes connecté",

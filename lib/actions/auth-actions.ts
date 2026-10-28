@@ -4,13 +4,17 @@ import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/server";
+import { z } from "zod";
+import { headers } from "next/headers";
 import {
+  checkEmailRateLimit,
   checkRateLimit,
   isRepeatSubmission,
   RateLimitError,
 } from "@/lib/ratelimit";
 import { isCaptchaEnabled, verifyTurnstileToken } from "@/lib/turnstile";
 import { tryCatch } from "@/lib/utils";
+import { safeReturnTo } from "@/lib/redirect";
 import { prisma } from "@/lib/db";
 import { createSession } from "@/lib/auth/session";
 import {
@@ -40,14 +44,10 @@ export interface AuthActionResult {
   error?: string;
 }
 
-function safeReturnTo(returnTo: string | undefined): string | undefined {
-  if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//"))
-    return returnTo;
-  return undefined;
-}
-
-async function enforceRateLimit(): Promise<AuthActionResult | null> {
-  const [error] = await tryCatch(checkRateLimit("auth"));
+async function enforceRateLimit(
+  check: () => Promise<void> = () => checkRateLimit("auth"),
+): Promise<AuthActionResult | null> {
+  const [error] = await tryCatch(check());
   if (error) {
     if (error instanceof RateLimitError)
       return {
@@ -99,10 +99,17 @@ export async function authenticateMagicLink(
   const rateLimitResult = await enforceRateLimit();
   if (rateLimitResult) return rateLimitResult;
 
-  const captchaResult = await enforceCaptcha(data);
+  const parsedEmail = z.email().max(254).safeParse(data.email?.trim().toLowerCase());
+  if (!parsedEmail.success)
+    return { success: false, error: "Please enter a valid email address." };
+  const email = parsedEmail.data;
+
+  const captchaResult = await enforceCaptcha({ ...data, email });
   if (captchaResult) return captchaResult;
 
-  const email = data.email.trim().toLowerCase();
+  const emailLimit = await enforceRateLimit(() => checkEmailRateLimit(email));
+  if (emailLimit) return emailLimit;
+
   const token = await createMagicLinkToken({
     email,
     locale: data.locale ?? DEFAULT_LOCALE,
@@ -161,7 +168,7 @@ export async function finishPasskeyAuthenticationAction(
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { success: false, error: "Account not found." };
 
-  await createSession(userId);
+  await createSession(userId, (await headers()).get("user-agent") ?? undefined);
 
   const safe = safeReturnTo(returnTo);
   let redirectTo: string;

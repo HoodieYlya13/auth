@@ -26,28 +26,36 @@ export function buildIdentityClaims(
     claims.email = user.email;
     claims.email_verified = Boolean(user.emailVerifiedAt);
   }
-  if (scopes.includes("profile")) {
+  // What other people may see: for apps that only show who you are (a game, a chat).
+  if (scopes.includes("public_profile") || scopes.includes("profile")) {
     if (user.username) claims.preferred_username = user.username;
     if (user.firstName) claims.given_name = user.firstName;
+    const picture = avatarUrl(user);
+    if (picture) claims.picture = picture;
+  }
+  // The full OIDC profile: adds the last name and birthday.
+  if (scopes.includes("profile")) {
     if (user.lastName) claims.family_name = user.lastName;
     const name = [user.firstName, user.lastName].filter(Boolean).join(" ");
     if (name) claims.name = name;
     if (user.birthday)
       claims.birthdate = user.birthday.toISOString().slice(0, 10);
-    const picture = avatarUrl(user);
-    if (picture) claims.picture = picture;
   }
   return claims;
 }
+
+/** Access tokens say so in their header (RFC 9068), so an ID token can't be used as one. */
+export const ACCESS_TOKEN_TYP = "at+jwt";
 
 async function sign(
   payload: Record<string, unknown>,
   subject: string,
   audience: string,
   ttlSeconds: number,
+  typ = "JWT",
 ): Promise<string> {
   return new SignJWT(payload)
-    .setProtectedHeader({ alg: SIGNING_ALG, kid: SIGNING_KID, typ: "JWT" })
+    .setProtectedHeader({ alg: SIGNING_ALG, kid: SIGNING_KID, typ })
     .setIssuer(ISSUER)
     .setSubject(subject)
     .setAudience(audience)
@@ -80,6 +88,7 @@ export async function signAccessToken(opts: {
     opts.user.id,
     opts.clientId,
     ACCESS_TOKEN_TTL,
+    ACCESS_TOKEN_TYP,
   );
 }
 

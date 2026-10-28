@@ -52,6 +52,22 @@ export async function isRepeatSubmission(identifier: string): Promise<boolean> {
   return !success;
 }
 
+/**
+ * Sign-in emails to one address, whatever the IP: stops someone flooding a
+ * victim's inbox from many machines.
+ */
+export async function checkEmailRateLimit(email: string): Promise<void> {
+  const redis = getRedisOrNull();
+  if (!redis) return;
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(5, "1 h"),
+    prefix: "rl:email",
+  });
+  const { success } = await limiter.limit(email);
+  if (!success) throw new RateLimitError();
+}
+
 export async function checkRateLimit(identifier: string): Promise<void> {
   const redis = getRedisOrNull();
   if (!redis) return;

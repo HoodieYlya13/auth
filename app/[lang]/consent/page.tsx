@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getClient } from "@/lib/oidc/clients";
+import {
+  consentCovers,
+  getClient,
+  grantableScopes,
+  isValidRedirectUri,
+} from "@/lib/oidc/clients";
 import { parseAuthorizeReturnTo } from "@/lib/oidc/authorize-params";
 import { prisma } from "@/lib/db";
 import { ConsentForm } from "@/components/auth/consent-form";
@@ -46,17 +51,18 @@ async function ConsentSection({
   const { return_to } = await searchParams;
   const returnTo = typeof return_to === "string" ? return_to : undefined;
   const parsed = returnTo ? parseAuthorizeReturnTo(returnTo) : null;
-  if (!returnTo || !parsed) redirect(`/${lang}/account`);
+  if (!parsed) redirect(`/${lang}/account`);
 
   const client = await getClient(parsed.clientId);
-  if (!client) redirect(`/${lang}/account`);
+  if (!client || !isValidRedirectUri(client, parsed.redirectUri))
+    redirect(`/${lang}/account`);
 
+  const scopes = grantableScopes(client, parsed.scope);
   const membership = await prisma.appMembership.findUnique({
     where: { userId_clientId: { userId: user.id, clientId: client.id } },
   });
-  if (membership) redirect(returnTo);
-
-  const scopes = parsed.scope.split(/\s+/).filter(Boolean);
+  if (membership && consentCovers(membership.scopesGranted, scopes))
+    redirect(parsed.path);
 
   return (
     <div className="relative z-10 w-full max-w-md bg-card text-card-foreground border border-border rounded-2xl p-8 shadow-md">
@@ -73,7 +79,7 @@ async function ConsentSection({
       </div>
 
       <ConsentForm
-        returnTo={returnTo}
+        returnTo={parsed.path}
         email={user.email}
         scopes={scopes}
         dict={dict.consent}

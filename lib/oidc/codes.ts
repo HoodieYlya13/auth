@@ -21,13 +21,9 @@ export async function issueAuthCode(data: AuthCode): Promise<string> {
   return code;
 }
 
+/** Single use: read and deleted in one step, so two requests racing with the same code can't both win. */
 export async function consumeAuthCode(code: string): Promise<AuthCode | null> {
-  const redis = getRedis();
-  const key = `${PREFIX}${code}`;
-  const data = await redis.get<AuthCode>(key);
-  if (!data) return null;
-  await redis.del(key);
-  return data;
+  return getRedis().getdel<AuthCode>(`${PREFIX}${code}`);
 }
 
 export function verifyPkce(verifier: string, challenge: string): boolean {

@@ -4,6 +4,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getAdminUser } from "@/lib/auth/admin";
 import { randomToken, sha256Base64Url } from "@/lib/crypto";
+import { redirectUriProblem } from "@/lib/oidc/clients";
+import { SUPPORTED_SCOPES } from "@/lib/oidc/discovery";
 
 function slugify(name: string): string {
   return (
@@ -33,6 +35,33 @@ const clientSchema = z.object({
   confidential: z.boolean().optional(),
 });
 
+/** The checks both forms share: redirect URIs, scopes and default roles. */
+function checkClient(data: z.infer<typeof clientSchema>) {
+  const redirectUris = parseLines(data.redirectUris);
+  if (redirectUris.length === 0)
+    return { error: "At least one redirect URI is required." } as const;
+  const postLogoutRedirectUris = parseLines(data.postLogoutRedirectUris);
+  for (const uri of [...redirectUris, ...postLogoutRedirectUris]) {
+    const problem = redirectUriProblem(uri);
+    if (problem) return { error: problem } as const;
+  }
+
+  const allowedScopes = parseLines(data.allowedScopes);
+  const unknownScope = allowedScopes.find((s) => !SUPPORTED_SCOPES.includes(s));
+  if (unknownScope)
+    return { error: `"${unknownScope}" is not a supported scope.` } as const;
+
+  const roles = parseLines(data.roles);
+  const defaultRoles = parseLines(data.defaultRoles);
+  // A default role must be a valid role for the app (when a palette is defined).
+  const palette = roles.length ? roles : ["USER", "ADMIN"];
+  const unknown = defaultRoles.find((r) => !palette.includes(r));
+  if (unknown)
+    return { error: `"${unknown}" is not a valid role for this app.` } as const;
+
+  return { redirectUris, postLogoutRedirectUris, allowedScopes, roles, defaultRoles } as const;
+}
+
 export interface ClientInput {
   name: string;
   redirectUris: string;
@@ -58,20 +87,9 @@ export async function createClient(
   const parsed = clientSchema.safeParse(input);
   if (!parsed.success)
     return { success: false, error: parsed.error.issues[0]?.message };
-
-  const redirectUris = parseLines(parsed.data.redirectUris);
-  if (redirectUris.length === 0)
-    return { success: false, error: "At least one redirect URI is required." };
-
-  const roles = parseLines(parsed.data.roles);
-  const defaultRoles = parseLines(parsed.data.defaultRoles);
-  const allowedScopes = parseLines(parsed.data.allowedScopes);
-
-  // A default role must be a valid role for the app (when a palette is defined).
-  const palette = roles.length ? roles : ["USER", "ADMIN"];
-  const unknown = defaultRoles.find((r) => !palette.includes(r));
-  if (unknown)
-    return { success: false, error: `"${unknown}" is not a valid role for this app.` };
+  const checked = checkClient(parsed.data);
+  if ("error" in checked) return { success: false, error: checked.error };
+  const { redirectUris, postLogoutRedirectUris, allowedScopes, roles, defaultRoles } = checked;
 
   let secret: string | undefined;
   let clientSecretHash: string | undefined;
@@ -87,7 +105,7 @@ export async function createClient(
       clientId,
       name: parsed.data.name,
       redirectUris,
-      postLogoutRedirectUris: parseLines(parsed.data.postLogoutRedirectUris),
+      postLogoutRedirectUris,
       trusted: Boolean(parsed.data.trusted),
       clientSecretHash,
       ...(roles.length ? { roles } : {}),
@@ -108,28 +126,19 @@ export async function updateClient(
   const parsed = clientSchema.safeParse(input);
   if (!parsed.success)
     return { success: false, error: parsed.error.issues[0]?.message };
-
-  const redirectUris = parseLines(parsed.data.redirectUris);
-  if (redirectUris.length === 0)
-    return { success: false, error: "At least one redirect URI is required." };
-
-  const roles = parseLines(parsed.data.roles);
-  const defaultRoles = parseLines(parsed.data.defaultRoles);
-  const palette = roles.length ? roles : ["USER", "ADMIN"];
-  const unknown = defaultRoles.find((r) => !palette.includes(r));
-  if (unknown)
-    return { success: false, error: `"${unknown}" is not a valid role for this app.` };
+  const checked = checkClient(parsed.data);
+  if ("error" in checked) return { success: false, error: checked.error };
 
   await prisma.client.update({
     where: { id },
     data: {
       name: parsed.data.name,
-      redirectUris,
-      postLogoutRedirectUris: parseLines(parsed.data.postLogoutRedirectUris),
+      redirectUris: checked.redirectUris,
+      postLogoutRedirectUris: checked.postLogoutRedirectUris,
       trusted: Boolean(parsed.data.trusted),
-      roles,
-      defaultRoles,
-      allowedScopes: parseLines(parsed.data.allowedScopes),
+      roles: checked.roles,
+      defaultRoles: checked.defaultRoles,
+      allowedScopes: checked.allowedScopes,
     },
   });
 
@@ -165,6 +174,15 @@ export async function setUserRoles(
   roles: string[],
 ): Promise<AdminResult> {
   if (!(await getAdminUser())) return { success: false, error: "Forbidden." };
+  const client = await prisma.client.findUnique({
+    where: { id: clientDbId },
+    select: { roles: true },
+  });
+  if (!client) return { success: false, error: "Unknown application." };
+  const palette = client.roles.length ? client.roles : ["USER", "ADMIN"];
+  const unknown = roles.find((r) => !palette.includes(r));
+  if (unknown)
+    return { success: false, error: `"${unknown}" is not a valid role for this app.` };
   await prisma.appMembership.updateMany({
     where: { userId, clientId: clientDbId },
     data: { roles },

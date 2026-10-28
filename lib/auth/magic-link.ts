@@ -27,15 +27,18 @@ export async function createMagicLinkToken(
   return token;
 }
 
+/** Single use: read and deleted in one step. */
 export async function consumeMagicLinkToken(
   token: string,
 ): Promise<MagicLinkPayload | null> {
-  const redis = getRedis();
-  const key = `${PREFIX}${token}`;
-  const payload = await redis.get<MagicLinkPayload>(key);
-  if (!payload) return null;
-  await redis.del(key);
-  return payload;
+  return getRedis().getdel<MagicLinkPayload>(`${PREFIX}${token}`);
+}
+
+/** Whether a link is still valid, without using it (the confirmation page). */
+export async function peekMagicLinkToken(
+  token: string,
+): Promise<MagicLinkPayload | null> {
+  return getRedis().get<MagicLinkPayload>(`${PREFIX}${token}`);
 }
 
 export async function sendMagicLinkEmail(

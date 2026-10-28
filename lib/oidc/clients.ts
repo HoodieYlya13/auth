@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { safeEqual, sha256Base64Url } from "@/lib/crypto";
+import { SUPPORTED_SCOPES } from "@/lib/oidc/discovery";
 import type { Client } from "@/lib/generated/prisma/client";
 
 export function getClient(clientId: string): Promise<Client | null> {
@@ -15,4 +16,44 @@ export function verifyClientSecret(client: Client, secret?: string): boolean {
   if (!client.clientSecretHash) return true;
   if (!secret) return false;
   return safeEqual(sha256Base64Url(secret), client.clientSecretHash);
+}
+
+/** The requested scopes this server supports and the client is allowed to ask for. */
+export function grantableScopes(client: Client, scope: string): string[] {
+  return scope
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter(
+      (s, i, all) =>
+        all.indexOf(s) === i &&
+        SUPPORTED_SCOPES.includes(s) &&
+        (client.allowedScopes.length === 0 || client.allowedScopes.includes(s)),
+    );
+}
+
+/** Whether what the user agreed to earlier covers these scopes (an app asking for more asks again). */
+export function consentCovers(granted: string[], scopes: string[]): boolean {
+  return scopes.every((s) => granted.includes(s));
+}
+
+/** Schemes a browser would run as code (or read locally) instead of navigating to an app. */
+const UNSAFE_SCHEMES = ["javascript:", "data:", "vbscript:", "file:", "blob:"];
+
+/**
+ * Why a redirect URI can't be registered, or null when it can. It must be an
+ * absolute URL without a fragment (OAuth 2.0 §3.1.2); custom schemes are fine
+ * for native apps, but not ones that run code.
+ */
+export function redirectUriProblem(uri: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(uri);
+  } catch {
+    return `"${uri}" is not an absolute URL.`;
+  }
+  if (UNSAFE_SCHEMES.includes(url.protocol))
+    return `"${uri}" uses a scheme that isn't allowed.`;
+  if (url.hash || uri.includes("#"))
+    return `"${uri}" must not contain a fragment (#).`;
+  return null;
 }

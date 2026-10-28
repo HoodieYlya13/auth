@@ -1,9 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
-import { getClient, isValidRedirectUri } from "@/lib/oidc/clients";
+import {
+  consentCovers,
+  getClient,
+  grantableScopes,
+  isValidRedirectUri,
+  redirectUriProblem,
+} from "@/lib/oidc/clients";
 import { issueAuthCode } from "@/lib/oidc/codes";
-import { SUPPORTED_SCOPES } from "@/lib/oidc/discovery";
 import {
   getDictionary,
   hasLocale,
@@ -67,7 +72,8 @@ function deepLinkHandoff(
   lang: Locale,
   t: { title: string; message: string; button: string },
 ): NextResponse {
-  const json = JSON.stringify(target);
+  // Inside a <script>: "<" escaped so a value can never close the tag.
+  const json = JSON.stringify(target).replace(/</g, "\\u003c");
   const html = `<!doctype html>
 <html lang="${lang}">
 <head>
@@ -123,7 +129,12 @@ export async function GET(req: NextRequest) {
   if (!clientId) return badRequest("missing client_id");
   const client = await getClient(clientId);
   if (!client) return badRequest("unknown client_id");
-  if (!redirectUri || !isValidRedirectUri(client, redirectUri))
+  // Registered, and still one a browser may safely go to (older entries weren't checked).
+  if (
+    !redirectUri ||
+    !isValidRedirectUri(client, redirectUri) ||
+    redirectUriProblem(redirectUri)
+  )
     return badRequest("invalid redirect_uri");
 
   const redirectError = (error: string, description?: string) => {
@@ -139,14 +150,9 @@ export async function GET(req: NextRequest) {
   if (!codeChallenge || codeChallengeMethod !== "S256")
     return redirectError("invalid_request", "PKCE with S256 is required");
 
-  const requested = scope.split(/\s+/).filter(Boolean);
-  if (!requested.includes("openid"))
+  if (!scope.split(/\s+/).includes("openid"))
     return redirectError("invalid_scope", "openid scope is required");
-  const granted = requested.filter(
-    (s) =>
-      SUPPORTED_SCOPES.includes(s) &&
-      (client.allowedScopes.length === 0 || client.allowedScopes.includes(s)),
-  );
+  const granted = grantableScopes(client, scope);
   const grantedScope = granted.join(" ");
 
   const selfUrl = req.nextUrl.pathname + req.nextUrl.search;
@@ -187,7 +193,8 @@ export async function GET(req: NextRequest) {
     const membership = await prisma.appMembership.findUnique({
       where: { userId_clientId: { userId: user.id, clientId: client.id } },
     });
-    if (!membership) {
+    // Asked again when the app wants more than the user agreed to.
+    if (!membership || !consentCovers(membership.scopesGranted, granted)) {
       const consent = new URL(`/${locale}/consent`, origin);
       consent.searchParams.set("return_to", interactiveReturn);
       return NextResponse.redirect(consent);

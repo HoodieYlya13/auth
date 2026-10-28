@@ -63,7 +63,18 @@ try {
   const email = `oidc+${Date.now()}@example.com`;
   const mlToken = `vt${randomBytes(16).toString("hex")}`;
   await redis.set(`ml:${mlToken}`, { email, locale: "en" }, { ex: 300 });
-  const verify = await fetch(`${BASE}/auth/verify?token=${mlToken}`, {
+  // Opening the link only shows a confirmation; mail scanners can't use it up.
+  const preview = await fetch(`${BASE}/auth/verify?token=${mlToken}`, {
+    redirect: "manual",
+  });
+  check(
+    "magic link: opening it asks for a click, token kept",
+    preview.status === 200 && Boolean(await redis.get(`ml:${mlToken}`)),
+  );
+  const verify = await fetch(`${BASE}/auth/verify`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ token: mlToken }),
     redirect: "manual",
   });
   const cookie = (verify.headers.get("set-cookie") ?? "").match(
@@ -177,6 +188,10 @@ try {
   check("userinfo: email matches", ui.email === email);
   const uiNoAuth = await fetch(`${BASE}/api/oidc/userinfo`);
   check("userinfo: 401 without token", uiNoAuth.status === 401);
+  const uiWithIdToken = await fetch(`${BASE}/api/oidc/userinfo`, {
+    headers: { authorization: `Bearer ${tokens.id_token}` },
+  });
+  check("userinfo: an ID token isn't an access token", uiWithIdToken.status === 401);
 
   // --- Consumed code can't be reused ---
   const replay = await form({
