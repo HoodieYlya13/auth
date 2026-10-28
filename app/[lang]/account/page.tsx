@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/oidc/tokens";
 import { prisma } from "@/lib/db";
 import { avatarPath } from "@/lib/avatar/avatar";
+import { safeReturnTo } from "@/lib/redirect";
 import { ProfileSection } from "@/components/account/profile-section";
 import { PasskeysSection } from "@/components/account/passkeys-section";
 import { AppsSection } from "@/components/account/apps-section";
@@ -52,9 +53,10 @@ async function AdminDashboardButton({ lang, dict }: { lang: string; dict: Accoun
 
 /**
  * "Back to {app}" for users who opened their account from an app. The app only
- * names itself (?client_id=); the link target is the homeUrl the admin
- * registered for it, never a URL from the query string, so this can't be used
- * as an open redirect. Shown only for apps the user has linked.
+ * names itself (?client_id=) and optionally a path (?return_path=); the origin
+ * always comes from the homeUrl the admin registered for it, never from the
+ * query string, so this can't be used as an open redirect. Shown only for apps
+ * the user has linked.
  */
 async function BackToAppLink({
   searchParams,
@@ -63,7 +65,7 @@ async function BackToAppLink({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
   dict: AccountDict;
 }) {
-  const { client_id } = await searchParams;
+  const { client_id, return_path } = await searchParams;
   if (typeof client_id !== "string" || !client_id) return null;
   const session = await getSession();
   if (!session) return null;
@@ -78,9 +80,16 @@ async function BackToAppLink({
   });
   if (!client?.homeUrl) return null;
 
+  // An optional ?return_path= picks the page to land on, but only as a path:
+  // the origin always stays the registered homeUrl's.
+  const path = safeReturnTo(
+    typeof return_path === "string" ? return_path : undefined,
+  );
+  const href = path ? new URL(path, client.homeUrl).href : client.homeUrl;
+
   return (
     <a
-      href={client.homeUrl}
+      href={href}
       className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
     >
       <ArrowLeft className="size-4" />
