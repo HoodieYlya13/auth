@@ -56,7 +56,9 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
     renderedAtRef.current = Date.now();
   }, []);
 
-  const validateRequest = (action: "passkey" | "magic-link"): boolean => {
+  // Bot checks only guard the email flow: a passkey needs a user-verified
+  // WebAuthn signature, which a form-filling bot can't produce.
+  const validateMagicLink = (): boolean => {
     if (honeypotRef.current?.value) {
       toast.error(dict.toastErrorSpam);
       return false;
@@ -68,19 +70,16 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
       return false;
     }
 
-    if (action === "magic-link") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        toast.error(dict.toastErrorEmail);
-        return false;
-      }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error(dict.toastErrorEmail);
+      return false;
     }
 
     return true;
   };
 
   const handlePasskey = async () => {
-    if (!validateRequest("passkey")) return;
     setIsSubmitting(true);
     setActiveAction("passkey");
 
@@ -119,7 +118,7 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
   };
 
   const handleMagicLink = async () => {
-    if (!validateRequest("magic-link")) return;
+    if (!validateMagicLink()) return;
     setIsSubmitting(true);
     setActiveAction("magic-link");
 
