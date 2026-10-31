@@ -11,6 +11,8 @@ export async function issueRefreshToken(opts: {
   clientDbId: string;
   scope: string;
   familyId?: string;
+  /** The sign-in that granted it; signing out there revokes it. */
+  sessionId?: string | null;
 }): Promise<string> {
   const token = randomToken(32);
   await prisma.refreshToken.create({
@@ -20,6 +22,7 @@ export async function issueRefreshToken(opts: {
       userId: opts.userId,
       clientId: opts.clientDbId,
       scope: opts.scope,
+      sessionId: opts.sessionId ?? null,
       expiresAt: new Date(Date.now() + TTL * 1000),
     },
   });
@@ -67,6 +70,7 @@ export async function rotateRefreshToken(
     clientDbId: record.clientId,
     scope: record.scope,
     familyId: record.familyId,
+    sessionId: record.sessionId,
   });
 
   return {

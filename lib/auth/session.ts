@@ -53,11 +53,26 @@ export async function getCurrentUser(): Promise<User | null> {
   return (await getSession())?.user ?? null;
 }
 
+/**
+ * Signs out of one sign-in, and out of every app it signed into: their refresh
+ * tokens are revoked, so each app is signed out at its next refresh. A session
+ * that merely expires is deleted without this, and apps keep their sign-in.
+ */
+async function endSession(id: string, userId?: string): Promise<void> {
+  await prisma.$transaction([
+    prisma.refreshToken.updateMany({
+      where: { sessionId: id, ...(userId ? { userId } : {}) },
+      data: { revoked: true },
+    }),
+    prisma.session.deleteMany({ where: { id, ...(userId ? { userId } : {}) } }),
+  ]);
+}
+
 export async function destroySession(): Promise<void> {
   const store = await cookies();
   const id = store.get(COOKIE)?.value;
   if (id) {
-    await prisma.session.delete({ where: { id } }).catch(() => {});
+    await endSession(id).catch(() => {});
     store.delete(COOKIE);
   }
 }
@@ -66,5 +81,5 @@ export async function revokeSession(
   sessionId: string,
   userId: string,
 ): Promise<void> {
-  await prisma.session.deleteMany({ where: { id: sessionId, userId } });
+  await endSession(sessionId, userId);
 }

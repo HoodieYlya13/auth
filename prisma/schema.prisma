@@ -111,9 +111,13 @@ model RefreshToken {
   usedAt    DateTime? // set when rotated
   revoked   Boolean   @default(false)
   createdAt DateTime  @default(now())
+  // The sign-in that granted it: signing out there revokes it (see endSession).
+  sessionId String?   @db.Uuid
+  session   Session?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@index([familyId])
   @@index([userId])
+  @@index([sessionId])
 }
 
 // IdP login session, referenced by an httpOnly cookie.
@@ -124,6 +128,7 @@ model Session {
   expiresAt DateTime
   userAgent String?
   createdAt DateTime @default(now())
+  refreshTokens RefreshToken[]
 
   @@index([userId])
 }

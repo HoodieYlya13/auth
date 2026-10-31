@@ -102,11 +102,20 @@ export async function POST(req: NextRequest) {
     });
     if (!user) return tokenError("invalid_grant");
 
+    // Signed out in the minute since the code was issued: no sign-in to grant.
+    if (
+      authCode.sessionId &&
+      !(await prisma.session.count({ where: { id: authCode.sessionId } }))
+    ) {
+      return tokenError("invalid_grant");
+    }
+
     const refreshToken = authCode.scope.includes("offline_access")
       ? await issueRefreshToken({
           userId: user.id,
           clientDbId: client.id,
           scope: authCode.scope,
+          sessionId: authCode.sessionId,
         })
       : undefined;
 

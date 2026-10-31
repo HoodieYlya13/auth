@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/session";
 import {
   consentCovers,
   getClient,
@@ -165,8 +165,9 @@ export async function GET(req: NextRequest) {
     return u.pathname + u.search;
   })();
 
-  const user = await getCurrentUser();
-  if (!user) {
+  const session = await getSession();
+  const user = session?.user ?? null;
+  if (!session || !user) {
     const login = new URL(`/${locale}`, origin);
     login.searchParams.set("return_to", interactiveReturn);
     return NextResponse.redirect(login);
@@ -209,6 +210,7 @@ export async function GET(req: NextRequest) {
     codeChallenge,
     nonce,
     authTime: Math.floor(Date.now() / 1000),
+    sessionId: session.sessionId,
   });
 
   const back = new URL(redirectUri);

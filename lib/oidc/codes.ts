@@ -13,6 +13,8 @@ export interface AuthCode {
   codeChallenge: string;
   nonce?: string;
   authTime: number;
+  /** The sign-in it was issued from, handed on to the refresh token. */
+  sessionId?: string;
 }
 
 export async function issueAuthCode(data: AuthCode): Promise<string> {
