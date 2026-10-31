@@ -6,6 +6,7 @@ import { isAdmin } from "@/lib/oidc/tokens";
 import { prisma } from "@/lib/db";
 import { avatarPath } from "@/lib/avatar/avatar";
 import { safeReturnTo } from "@/lib/redirect";
+import { findReturnApp } from "@/lib/oidc/clients";
 import { ProfileSection } from "@/components/account/profile-section";
 import { PasskeysSection } from "@/components/account/passkeys-section";
 import { AppsSection } from "@/components/account/apps-section";
@@ -70,15 +71,8 @@ async function BackToAppLink({
   const session = await getSession();
   if (!session) return null;
 
-  const client = await prisma.client.findFirst({
-    where: {
-      clientId: client_id,
-      homeUrl: { not: null },
-      memberships: { some: { userId: session.user.id } },
-    },
-    select: { name: true, homeUrl: true },
-  });
-  if (!client?.homeUrl) return null;
+  const client = await findReturnApp(client_id, session.user.id);
+  if (!client) return null;
 
   // An optional ?return_path= picks the page to land on, but only as a path:
   // the origin always stays the registered homeUrl's.
@@ -95,6 +89,25 @@ async function BackToAppLink({
       <ArrowLeft className="size-4" />
       {dict.backToApp.replace("{app}", client.name)}
     </a>
+  );
+}
+
+async function SignOutButtonWrapper({
+  lang,
+  searchParams,
+  label,
+}: {
+  lang: string;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  label: string;
+}) {
+  const { client_id } = await searchParams;
+  return (
+    <SignOutButton
+      locale={lang}
+      clientId={typeof client_id === "string" ? client_id : undefined}
+      label={label}
+    />
   );
 }
 
@@ -220,7 +233,9 @@ export default async function Page({
             <Suspense fallback={<div className="h-9 w-32 bg-muted rounded animate-pulse" />}>
               <AdminDashboardButton lang={lang} dict={t} />
             </Suspense>
-            <SignOutButton locale={lang} label={t.signOut} />
+            <Suspense fallback={<SignOutButton locale={lang} label={t.signOut} />}>
+              <SignOutButtonWrapper lang={lang} searchParams={searchParams} label={t.signOut} />
+            </Suspense>
           </div>
         </header>
 

@@ -87,3 +87,42 @@ export function homeUrlProblem(
     return `"${uri}" must be on the same origin as a redirect URI.`;
   return null;
 }
+
+export interface ReturnApp {
+  name: string;
+  homeUrl: string;
+  /** The app's post-logout URI on the homeUrl's origin, if it registered one. */
+  logoutUrl: string | null;
+}
+
+/**
+ * The app a user opened their account from (?client_id=), when it has a
+ * homeUrl and the user has linked it; null otherwise. Every URL comes from
+ * the client record, never from the request.
+ */
+export async function findReturnApp(
+  clientId: string | undefined,
+  userId: string,
+): Promise<ReturnApp | null> {
+  if (!clientId) return null;
+  const client = await prisma.client.findFirst({
+    where: {
+      clientId,
+      homeUrl: { not: null },
+      memberships: { some: { userId } },
+    },
+    select: { name: true, homeUrl: true, postLogoutRedirectUris: true },
+  });
+  if (!client?.homeUrl) return null;
+
+  const origin = new URL(client.homeUrl).origin;
+  const logoutUrl =
+    client.postLogoutRedirectUris.find((uri) => {
+      try {
+        return new URL(uri).origin === origin;
+      } catch {
+        return false;
+      }
+    }) ?? null;
+  return { name: client.name, homeUrl: client.homeUrl, logoutUrl };
+}

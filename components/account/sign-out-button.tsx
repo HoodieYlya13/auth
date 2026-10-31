@@ -7,9 +7,11 @@ import { signOut } from "@/lib/actions/account-actions";
 
 export function SignOutButton({
   locale,
+  clientId,
   label,
 }: {
   locale: string;
+  clientId?: string;
   label: string;
 }) {
   const [busy, setBusy] = useState(false);
@@ -20,7 +22,7 @@ export function SignOutButton({
       disabled={busy}
       onClick={() => {
         setBusy(true);
-        void signOut(locale);
+        void signOut(locale, clientId);
       }}
       className="h-9 cursor-pointer gap-1.5"
     >

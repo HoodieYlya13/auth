@@ -17,6 +17,7 @@ import {
   finishPasskeyRegistration,
   startPasskeyRegistration,
 } from "@/lib/auth/webauthn";
+import { findReturnApp } from "@/lib/oidc/clients";
 import {
   AVATAR_MAX_BYTES,
   avatarPath,
@@ -306,7 +307,16 @@ export async function revokeUserSession(
   return { success: true };
 }
 
-export async function signOut(locale: string = DEFAULT_LOCALE): Promise<void> {
+/**
+ * Signing out from an account page opened by an app (?client_id=) ends at that
+ * app's registered post-logout URI, so the app clears its own session too.
+ */
+export async function signOut(
+  locale: string = DEFAULT_LOCALE,
+  clientId?: string,
+): Promise<void> {
+  const user = await getCurrentUser();
+  const app = user ? await findReturnApp(clientId, user.id) : null;
   await destroySession();
-  redirect(`/${locale}`);
+  redirect(app?.logoutUrl ?? `/${locale}`);
 }
