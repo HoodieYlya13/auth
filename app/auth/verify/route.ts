@@ -114,7 +114,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Signed in by email again: offer a passkey instead, once a day.
-  if ((await passkeyReminderDue()) && !(await hasPasskey(user.id))) {
+  // Not when already headed for the passkey page (an app sent them there).
+  const toPrompt = returnTo?.split("?")[0] === `/${locale}/auth/passkey`;
+  if (!toPrompt && (await passkeyReminderDue()) && !(await hasPasskey(user.id))) {
     await markPasskeyReminder();
     return NextResponse.redirect(new URL(passkeyPromptPath(locale, returnTo), base), 303);
   }

@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { hasPasskey } from "@/lib/auth/passkey-prompt";
 import { PasskeyPrompt } from "@/components/auth/passkey-prompt";
 import { safeReturnTo } from "@/lib/redirect";
+import { findReturnApp } from "@/lib/oidc/clients";
 import { Suspense } from "react";
 
 function PromptSkeleton() {
@@ -28,11 +29,22 @@ async function PromptSection({
   const user = await getCurrentUser();
   if (!user) redirect(`/${lang}`);
 
-  const { return_to } = await searchParams;
+  const { return_to, client_id, return_path } = await searchParams;
   const returnTo = safeReturnTo(
     typeof return_to === "string" ? return_to : undefined,
   );
-  const next = returnTo ?? `/${lang}/account`;
+  // Sent by an app (?client_id=, optional ?return_path=): back to it after,
+  // with the origin from its registered homeUrl, as on the account page.
+  const app = await findReturnApp(
+    typeof client_id === "string" ? client_id : undefined,
+    user.id,
+  );
+  const appPath = safeReturnTo(
+    typeof return_path === "string" ? return_path : undefined,
+  );
+  const appHref =
+    app && (appPath ? new URL(appPath, app.homeUrl).href : app.homeUrl);
+  const next = appHref ?? returnTo ?? `/${lang}/account`;
 
   if (!user.username) redirect(`/${lang}/auth/complete-registration`);
   // Added one meanwhile (another tab, the Back button): nothing to offer.
