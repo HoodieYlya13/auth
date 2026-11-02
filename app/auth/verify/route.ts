@@ -7,6 +7,12 @@ import {
 } from "@/lib/auth/magic-link";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { safeReturnTo } from "@/lib/redirect";
+import {
+  hasPasskey,
+  markPasskeyReminder,
+  passkeyPromptPath,
+  passkeyReminderDue,
+} from "@/lib/auth/passkey-prompt";
 
 const DEFAULT_LOCALE = "en";
 const TOKEN_FORMAT = /^[A-Za-z0-9_-]{20,100}$/;
@@ -105,6 +111,12 @@ export async function POST(req: NextRequest) {
     const reg = new URL(`/${locale}/auth/complete-registration`, base);
     if (returnTo) reg.searchParams.set("return_to", returnTo);
     return NextResponse.redirect(reg, 303);
+  }
+
+  // Signed in by email again: offer a passkey instead, once a day.
+  if ((await passkeyReminderDue()) && !(await hasPasskey(user.id))) {
+    await markPasskeyReminder();
+    return NextResponse.redirect(new URL(passkeyPromptPath(locale, returnTo), base), 303);
   }
 
   return NextResponse.redirect(new URL(returnTo ?? `/${locale}/account`, base), 303);

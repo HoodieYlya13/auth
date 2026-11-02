@@ -31,6 +31,16 @@
     "success": "Profile saved!",
     "error": "Something went wrong. Please try again."
   },
+  "passkeyPrompt": {
+    "title": "Add a passkey",
+    "description": "Next time, sign in with your face, fingerprint or screen lock instead of waiting for an email.",
+    "add": "Add a passkey",
+    "skip": "Not now",
+    "added": "Passkey added.",
+    "error": "Could not add a passkey. You can add one later from your account.",
+    "cancelled": "Passkey setup was cancelled.",
+    "exists": "This device already has a passkey for your account."
+  },
   "consent": {
     "title": "Authorize {app}",
     "description": "{app} wants to sign you in with your account. You can revoke access anytime from your account settings.",

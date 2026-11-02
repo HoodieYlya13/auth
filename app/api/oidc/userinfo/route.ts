@@ -5,9 +5,11 @@ import { getPublicKey, SIGNING_ALG } from "@/lib/oidc/keys";
 import {
   ACCESS_TOKEN_TYP,
   buildIdentityClaims,
+  passkeyClaims,
   parseScopes,
 } from "@/lib/oidc/tokens";
 import { tryCatch } from "@/lib/utils";
+import { hasPasskey } from "@/lib/auth/passkey-prompt";
 
 const ISSUER = process.env.ISSUER ?? "";
 
@@ -42,7 +44,11 @@ async function handle(req: NextRequest) {
   if (!user) return unauthorized();
 
   return NextResponse.json(
-    { sub: user.id, ...buildIdentityClaims(user, parseScopes(scope)) },
+    {
+      sub: user.id,
+      ...buildIdentityClaims(user, parseScopes(scope)),
+      ...passkeyClaims(await hasPasskey(user.id)),
+    },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

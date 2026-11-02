@@ -9,6 +9,7 @@ const PROTECTED = [
   "/admin",
   "/consent",
   "/auth/complete-registration",
+  "/auth/passkey",
 ];
 
 const SESSION_COOKIE = "auth_session";

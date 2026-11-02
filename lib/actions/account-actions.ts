@@ -7,6 +7,7 @@ import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { tryCatch } from "@/lib/utils";
 import { safeReturnTo } from "@/lib/redirect";
+import { markPasskeyReminder, passkeyPromptPath } from "@/lib/auth/passkey-prompt";
 import {
   destroySession,
   getCurrentUser,
@@ -108,9 +109,11 @@ export async function completeRegistration(
     throw error;
   }
 
+  // A new account: offer a passkey before going on.
+  await markPasskeyReminder();
   return {
     success: true,
-    redirectTo: safeReturnTo(returnTo) ?? `/${locale}/account`,
+    redirectTo: passkeyPromptPath(locale, safeReturnTo(returnTo)),
   };
 }
 

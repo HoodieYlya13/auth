@@ -16,14 +16,16 @@ carries their identity and **per-app roles**.
 
 ## How it works
 
-- **Auth methods.** A magic link verifies the email and creates the account; the user then
-  adds a passkey for fast future logins. Login sets an httpOnly session cookie (DB-backed,
-  revocable).
+- **Auth methods.** A magic link verifies the email and creates the account; the user is
+  then offered a passkey for fast future logins, and again (at most once a day per browser)
+  whenever they sign in by email without one. Login sets an httpOnly session cookie
+  (DB-backed, revocable).
 - **Registration gate.** A user must set a **username** (first/last name and birthday are
   optional) before they can be redirected to any app.
 - **OIDC.** Authorization Code + PKCE (S256 only), RS256 signed tokens, discovery + JWKS.
   Access tokens are self-contained (identity claims + `roles` for the audience app +
-  `admin`), ~15 min TTL. Refresh tokens rotate with **reuse detection** (replay revokes the
+  `admin`), ~15 min TTL. Tokens and userinfo carry `no_passkey: true` while the account has
+  no passkey (left out once it has one), so apps can suggest adding one. Refresh tokens rotate with **reuse detection** (replay revokes the
   whole family).
 - **Consent.** First time a user links a non-`trusted` app they approve a consent screen;
   the link is remembered and revocable from account settings. `trusted` first-party apps

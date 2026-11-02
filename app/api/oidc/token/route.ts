@@ -5,6 +5,7 @@ import { consumeAuthCode, verifyPkce } from "@/lib/oidc/codes";
 import { issueRefreshToken, rotateRefreshToken } from "@/lib/oidc/refresh";
 import { resolveRoles } from "@/lib/roles";
 import { signAccessToken, signIdToken, TTL } from "@/lib/oidc/tokens";
+import { hasPasskey as findPasskey } from "@/lib/auth/passkey-prompt";
 import type { Client, User } from "@/lib/generated/prisma/client";
 
 function tokenError(error: string, status = 400) {
@@ -41,13 +42,17 @@ async function buildTokenResponse(
   scope: string,
   opts: { nonce?: string; authTime?: number; refreshToken?: string },
 ) {
-  const roles = await resolveRoles(user, client.id);
+  const [roles, hasPasskey] = await Promise.all([
+    resolveRoles(user, client.id),
+    findPasskey(user.id),
+  ]);
   const [access_token, id_token] = await Promise.all([
-    signAccessToken({ user, clientId: client.clientId, scope, roles }),
+    signAccessToken({ user, clientId: client.clientId, scope, roles, hasPasskey }),
     signIdToken({
       user,
       clientId: client.clientId,
       scope,
+      hasPasskey,
       nonce: opts.nonce,
       authTime: opts.authTime,
     }),

@@ -44,6 +44,14 @@ export function buildIdentityClaims(
   return claims;
 }
 
+/**
+ * `no_passkey: true` while the account has no passkey, so apps can suggest
+ * adding one. Left out once it has one: nothing to say then.
+ */
+export function passkeyClaims(hasPasskey: boolean): Record<string, unknown> {
+  return hasPasskey ? {} : { no_passkey: true };
+}
+
 /** Access tokens say so in their header (RFC 9068), so an ID token can't be used as one. */
 export const ACCESS_TOKEN_TYP = "at+jwt";
 
@@ -70,6 +78,7 @@ export async function signAccessToken(opts: {
   clientId: string;
   scope: string;
   roles: string[];
+  hasPasskey: boolean;
 }): Promise<string> {
   const scopes = parseScopes(opts.scope);
   const admin = isAdmin(opts.user.email);
@@ -80,6 +89,7 @@ export async function signAccessToken(opts: {
   return sign(
     {
       ...buildIdentityClaims(opts.user, scopes),
+      ...passkeyClaims(opts.hasPasskey),
       client_id: opts.clientId,
       scope: opts.scope,
       roles,
@@ -98,8 +108,12 @@ export async function signIdToken(opts: {
   scope: string;
   nonce?: string;
   authTime?: number;
+  hasPasskey: boolean;
 }): Promise<string> {
-  const payload = buildIdentityClaims(opts.user, parseScopes(opts.scope));
+  const payload = {
+    ...buildIdentityClaims(opts.user, parseScopes(opts.scope)),
+    ...passkeyClaims(opts.hasPasskey),
+  };
   if (opts.nonce) payload.nonce = opts.nonce;
   if (opts.authTime) payload.auth_time = opts.authTime;
   return sign(payload, opts.user.id, opts.clientId, ID_TOKEN_TTL);

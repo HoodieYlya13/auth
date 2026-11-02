@@ -31,6 +31,16 @@
     "success": "Profil enregistré !",
     "error": "Une erreur est survenue. Veuillez réessayer."
   },
+  "passkeyPrompt": {
+    "title": "Ajouter une passkey",
+    "description": "La prochaine fois, connectez-vous avec votre visage, votre empreinte ou le verrouillage de l'écran, sans attendre d'e-mail.",
+    "add": "Ajouter une passkey",
+    "skip": "Plus tard",
+    "added": "Passkey ajoutée.",
+    "error": "Impossible d'ajouter une passkey. Vous pourrez en ajouter une depuis votre compte.",
+    "cancelled": "Ajout de la passkey annulé.",
+    "exists": "Cet appareil a déjà une passkey pour votre compte."
+  },
   "consent": {
     "title": "Autoriser {app}",
     "description": "{app} souhaite vous connecter avec votre compte. Vous pouvez révoquer l'accès à tout moment depuis les paramètres de votre compte.",

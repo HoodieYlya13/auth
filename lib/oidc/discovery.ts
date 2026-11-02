@@ -56,6 +56,7 @@ export function getDiscoveryDocument() {
       "picture",
       "roles",
       "admin",
+      "no_passkey",
     ],
   };
 }
