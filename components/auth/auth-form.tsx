@@ -58,7 +58,7 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
 
   // Bot checks only guard the email flow: a passkey needs a user-verified
   // WebAuthn signature, which a form-filling bot can't produce.
-  const validateMagicLink = (): boolean => {
+  const validateMagicLink = (email: string): boolean => {
     if (honeypotRef.current?.value) {
       toast.error(dict.toastErrorSpam);
       return false;
@@ -117,8 +117,8 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
     toast.error(outcome.message || dict.toastErrorPasskey, { id: toastId });
   };
 
-  const handleMagicLink = async () => {
-    if (!validateMagicLink()) return;
+  const handleMagicLink = async (email: string) => {
+    if (!validateMagicLink(email)) return;
     setIsSubmitting(true);
     setActiveAction("magic-link");
 
@@ -150,8 +150,6 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
     setActiveAction(null);
   };
 
-  const isEmailValid = email.includes("@") && email.length > 4;
-
   return (
     <div className="flex flex-col gap-5">
       <Honeypot honeypotRef={honeypotRef} />
@@ -182,7 +180,6 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
         setTurnstileToken={setTurnstileToken}
         setShowCaptcha={setShowCaptcha}
         onSubmit={handleMagicLink}
-        isEmailValid={isEmailValid}
         dict={dict}
       />
     </div>
@@ -263,7 +260,6 @@ function MagicLinkSection({
   setTurnstileToken,
   setShowCaptcha,
   onSubmit,
-  isEmailValid,
   dict,
 }: {
   email: string;
@@ -274,30 +270,36 @@ function MagicLinkSection({
   turnstileToken: string | null;
   setTurnstileToken: (token: string | null) => void;
   setShowCaptcha: (show: boolean) => void;
-  onSubmit: () => void;
-  isEmailValid: boolean;
+  onSubmit: (email: string) => void;
   dict: AuthFormProps["dict"];
 }) {
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (
-          isEmailValid &&
-          !(showCaptcha && !turnstileToken) &&
-          !isSubmitting
-        ) {
-          onSubmit();
-        }
+        if ((showCaptcha && !turnstileToken) || isSubmitting) return;
+        // The field itself, not the state: autofill and password managers can
+        // fill it without a change event.
+        const value = String(
+          new FormData(e.currentTarget).get("email") ?? "",
+        ).trim();
+        setEmail(value);
+        onSubmit(value);
       }}
       className="flex flex-col gap-5"
     >
       <div className="flex flex-col gap-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <label
+          htmlFor="email"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           {dict.emailLabel}
         </label>
         <Input
+          id="email"
+          name="email"
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
@@ -326,9 +328,9 @@ function MagicLinkSection({
         <Button
           variant="outline"
           type="submit"
-          disabled={
-            !isEmailValid || (showCaptcha && !turnstileToken) || isSubmitting
-          }
+          // Never disabled for an invalid email: a disabled submit button
+          // stops Enter from submitting. The email is checked on submit.
+          disabled={(showCaptcha && !turnstileToken) || isSubmitting}
           className="w-full h-9 cursor-pointer font-semibold shadow-xs border-input hover:bg-accent flex items-center justify-center gap-2"
         >
           {isSubmitting && activeAction === "magic-link" ? (

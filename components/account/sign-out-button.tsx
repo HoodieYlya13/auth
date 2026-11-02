@@ -22,7 +22,8 @@ export function SignOutButton({
       disabled={busy}
       onClick={() => {
         setBusy(true);
-        void signOut(locale, clientId);
+        // Redirects on success; a network error gives the button back.
+        signOut(locale, clientId).catch(() => setBusy(false));
       }}
       className="h-9 cursor-pointer gap-1.5"
     >

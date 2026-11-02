@@ -83,7 +83,7 @@ export function CompleteRegistrationForm({
         </p>
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field
           label={`${dict.firstNameLabel} (${dict.optional})`}
           htmlFor="firstName"
@@ -130,7 +130,7 @@ export function CompleteRegistrationForm({
 
       <Button
         type="submit"
-        disabled={isSubmitting || username.trim().length < 3}
+        disabled={isSubmitting}
         className="w-full h-9 cursor-pointer font-semibold shadow-xs flex items-center justify-center gap-2"
       >
         {isSubmitting && <Loader2 className="animate-spin size-4" />}

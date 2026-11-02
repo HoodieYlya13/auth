@@ -8,6 +8,41 @@ import { revokeUserSession } from "@/lib/actions/account-actions";
 import type { AccountDict } from "@/components/account/account-dict";
 import { LocalDate } from "@/components/local-date";
 
+/**
+ * "Chrome · macOS" from a user agent: the raw string starts with
+ * "Mozilla/5.0 (…" for every browser, so all sessions looked alike.
+ */
+function deviceName(userAgent: string): string | null {
+  const browser = /Edg\//.test(userAgent)
+    ? "Edge"
+    : /OPR\/|Opera/.test(userAgent)
+      ? "Opera"
+      : /Firefox\/|FxiOS/.test(userAgent)
+        ? "Firefox"
+        : /Chrome\/|CriOS/.test(userAgent)
+          ? "Chrome"
+          : /Safari\//.test(userAgent)
+            ? "Safari"
+            : null;
+  const os = /iPhone/.test(userAgent)
+    ? "iPhone"
+    : /iPad/.test(userAgent)
+      ? "iPad"
+      : /Android/.test(userAgent)
+        ? "Android"
+        : /Mac OS X|Macintosh/.test(userAgent)
+          ? "macOS"
+          : /Windows/.test(userAgent)
+            ? "Windows"
+            : /CrOS/.test(userAgent)
+              ? "ChromeOS"
+              : /Linux/.test(userAgent)
+                ? "Linux"
+                : null;
+  const parts = [browser, os].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}
+
 interface SessionInfo {
   id: string;
   isCurrent: boolean;
@@ -42,8 +77,13 @@ export function SessionsSection({
           <li key={s.id} className="flex items-center gap-3 py-3">
             <Monitor className="size-4 text-muted-foreground shrink-0" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">
-                {s.userAgent || dict.unknownDevice}
+              <p
+                className="text-sm font-medium truncate"
+                title={s.userAgent ?? undefined}
+              >
+                {(s.userAgent && deviceName(s.userAgent)) ||
+                  s.userAgent ||
+                  dict.unknownDevice}
                 {s.isCurrent && (
                   <span className="ml-2 text-[11px] font-medium text-primary">
                     {dict.currentSession}

@@ -15,7 +15,7 @@ function RegistrationFormSkeleton() {
         <div className="h-9 bg-muted rounded-lg w-full" />
         <div className="h-3 bg-muted rounded w-2/3" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <div className="h-4 bg-muted rounded w-1/2" />
           <div className="h-9 bg-muted rounded-lg w-full" />

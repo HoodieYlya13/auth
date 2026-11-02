@@ -35,8 +35,8 @@ export default async function AdminLayout({
   return (
     <div className="min-h-screen min-h-svh bg-background">
       <header className="border-b border-border">
-        <div className="mx-auto max-w-4xl px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        <div className="mx-auto max-w-4xl px-4 min-h-14 py-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <span className="font-semibold">{t.title}</span>
             <nav className="flex items-center gap-4 text-sm">
               {nav.map((item) => (

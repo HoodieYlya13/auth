@@ -53,15 +53,17 @@ export function ProfileSection({
   return (
     <Section title={dict.profileTitle} description={dict.profileDescription}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Labelled label={dict.photoLabel}>
+        <Labelled label={dict.photoLabel} htmlFor={null}>
           <AvatarPicker
             initialUrl={avatarUrl}
             fallback={(initial.firstName || initial.username).charAt(0)}
             dict={dict}
           />
         </Labelled>
-        <Labelled label={dict.usernameLabel}>
+        <Labelled label={dict.usernameLabel} htmlFor="username">
           <Input
+            id="username"
+            autoComplete="username"
             value={values.username}
             onChange={(e) => set("username")(e.target.value)}
             className="h-9 bg-background/50"
@@ -71,16 +73,20 @@ export function ProfileSection({
           />
         </Labelled>
         <div className="grid grid-cols-2 gap-3">
-          <Labelled label={dict.firstNameLabel}>
+          <Labelled label={dict.firstNameLabel} htmlFor="firstName">
             <Input
+              id="firstName"
+              autoComplete="given-name"
               value={values.firstName}
               onChange={(e) => set("firstName")(e.target.value)}
               className="h-9 bg-background/50"
               maxLength={50}
             />
           </Labelled>
-          <Labelled label={dict.lastNameLabel}>
+          <Labelled label={dict.lastNameLabel} htmlFor="lastName">
             <Input
+              id="lastName"
+              autoComplete="family-name"
               value={values.lastName}
               onChange={(e) => set("lastName")(e.target.value)}
               className="h-9 bg-background/50"
@@ -88,8 +94,9 @@ export function ProfileSection({
             />
           </Labelled>
         </div>
-        <Labelled label={dict.birthdayLabel}>
+        <Labelled label={dict.birthdayLabel} htmlFor="birthday">
           <Input
+            id="birthday"
             type="date"
             value={values.birthday}
             onChange={(e) => set("birthday")(e.target.value)}
@@ -111,18 +118,27 @@ export function ProfileSection({
   );
 }
 
+/** `htmlFor: null` for a group that isn't one field (the photo buttons). */
 function Labelled({
   label,
+  htmlFor,
   children,
 }: {
   label: string;
+  htmlFor: string | null;
   children: React.ReactNode;
 }) {
+  const className =
+    "text-xs font-semibold uppercase tracking-wider text-muted-foreground";
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </label>
+      {htmlFor ? (
+        <label htmlFor={htmlFor} className={className}>
+          {label}
+        </label>
+      ) : (
+        <p className={className}>{label}</p>
+      )}
       {children}
     </div>
   );

@@ -27,7 +27,7 @@ function ConsentSkeleton() {
           <div className="h-5 bg-muted rounded-md w-full" />
           <div className="h-5 bg-muted rounded-md w-full" />
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-6">
+        <div className="flex flex-col gap-2 mt-6">
           <div className="h-9 bg-muted rounded-lg w-full" />
           <div className="h-9 bg-muted rounded-lg w-full" />
         </div>

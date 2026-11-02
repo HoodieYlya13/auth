@@ -109,6 +109,9 @@ export function PasskeysSection({
     );
     setSaving(false);
     if (error || !result || !result.success) {
+      // The dialog can't be closed while adding: retrying would replay the
+      // same (by now used or expired) challenge, so start over from "Add".
+      setNameDialog(null);
       toast.error(result?.error || dict.passkeyError);
       return;
     }

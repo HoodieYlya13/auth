@@ -57,14 +57,14 @@ export function UsersManager({
             key={user.id}
             className="rounded-xl border border-border bg-card p-4"
           >
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="font-medium">{user.username ?? "—"}</p>
               {user.admin && (
                 <span className="rounded-full bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold uppercase">
                   {dict.adminBadge}
                 </span>
               )}
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground break-all">
                 {user.email}
               </span>
             </div>

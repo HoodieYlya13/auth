@@ -33,7 +33,7 @@ function SectionSkeleton({ title }: { title: string }) {
 async function UserEmailSection() {
   const session = await getSession();
   if (!session) return null;
-  return <p className="text-sm text-muted-foreground">{session.user.email}</p>;
+  return <p className="text-sm text-muted-foreground break-all">{session.user.email}</p>;
 }
 
 async function AdminDashboardButton({ lang, dict }: { lang: string; dict: AccountDict }) {
@@ -222,8 +222,8 @@ export default async function Page({
         <Suspense fallback={null}>
           <BackToAppLink searchParams={searchParams} dict={t} />
         </Suspense>
-        <header className="flex items-center justify-between">
-          <div>
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
             <Suspense fallback={<div className="h-4 w-48 bg-muted rounded animate-pulse mt-1" />}>
               <UserEmailSection />

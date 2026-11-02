@@ -18,7 +18,7 @@ export function Section({
             <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
           )}
         </div>
-        {action}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       {children}
     </section>
