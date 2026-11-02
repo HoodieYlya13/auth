@@ -13,6 +13,10 @@ const PROTECTED = [
 ];
 
 const SESSION_COOKIE = "auth_session";
+// Set by lib/auth/passkey-prompt.ts once the daily passkey check is done.
+const REMINDER_COOKIE = "passkey_reminder";
+// Pages that offer a passkey themselves, or come before it.
+const NO_REMINDER = ["/auth/passkey", "/auth/complete-registration"];
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -38,6 +42,26 @@ export function proxy(req: NextRequest) {
     const url = req.nextUrl.clone();
     url.pathname = `/${locale}`;
     url.search = "";
+    url.searchParams.set("return_to", pathname + search);
+    return NextResponse.redirect(url);
+  }
+
+  // Once a day, the first page loaded checks for a passkey on the way (see
+  // app/api/auth/passkey-reminder). Only for page loads: not server actions
+  // (POSTs), nor prefetches and client navigations (a full page load came
+  // first, and a prefetch would use up the day unseen).
+  const isPageLoad =
+    req.method === "GET" &&
+    !req.headers.has("rsc") &&
+    !req.headers.has("next-router-prefetch") &&
+    req.headers.get("purpose") !== "prefetch";
+  if (
+    isPageLoad &&
+    !req.cookies.has(REMINDER_COOKIE) &&
+    !NO_REMINDER.some((p) => rest === p || rest.startsWith(`${p}/`))
+  ) {
+    const url = new URL("/api/auth/passkey-reminder", req.nextUrl.origin);
+    url.searchParams.set("lang", locale);
     url.searchParams.set("return_to", pathname + search);
     return NextResponse.redirect(url);
   }

@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 
 /**
- * New accounts, and anyone signing in by email without a passkey (at most once
- * a day), are offered to add one before going on to where they were headed.
+ * New accounts, and anyone signed in without a passkey (at most once a day:
+ * on sign-in, on any page, or on the way into an app), are offered to add one
+ * before going on to where they were headed.
  */
 
 const REMINDER_COOKIE = "passkey_reminder";
@@ -22,6 +23,18 @@ export function passkeyPromptPath(locale: string, returnTo?: string): string {
 /** Whether the prompt is due: not shown on this browser in the last day. */
 export async function passkeyReminderDue(): Promise<boolean> {
   return !(await cookies()).has(REMINDER_COOKIE);
+}
+
+/**
+ * Whether to offer a passkey now: not offered on this browser in the last
+ * day, and the account has none. Checked once a day either way, so an account
+ * with a passkey costs one lookup a day. Route handlers and actions only (it
+ * sets a cookie).
+ */
+export async function passkeyPromptDue(userId: string): Promise<boolean> {
+  if (!(await passkeyReminderDue())) return false;
+  await markPasskeyReminder();
+  return !(await hasPasskey(userId));
 }
 
 /** Starts the day without another prompt. */

@@ -17,8 +17,9 @@ carries their identity and **per-app roles**.
 ## How it works
 
 - **Auth methods.** A magic link verifies the email and creates the account; the user is
-  then offered a passkey for fast future logins, and again (at most once a day per browser)
-  whenever they sign in by email without one. Login sets an httpOnly session cookie
+  then offered a passkey for fast future logins, and again once a day per browser while they
+  have none: on an email sign-in, the first page they load, or on the way into an app, then
+  back to where they were headed. Login sets an httpOnly session cookie
   (DB-backed, revocable).
 - **Registration gate.** A user must set a **username** (first/last name and birthday are
   optional) before they can be redirected to any app.

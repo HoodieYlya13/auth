@@ -77,6 +77,11 @@ export async function destroySession(): Promise<void> {
   }
 }
 
+/** A cookie whose session is gone (expired, revoked): dropped, nothing to end. */
+export async function forgetStaleSessionCookie(): Promise<void> {
+  (await cookies()).delete(COOKIE);
+}
+
 export async function revokeSession(
   sessionId: string,
   userId: string,

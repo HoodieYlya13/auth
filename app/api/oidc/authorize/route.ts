@@ -15,6 +15,7 @@ import {
   type Locale,
 } from "@/lib/dictionaries/dictionaries";
 import { tryCatchSync } from "@/lib/utils";
+import { passkeyPromptDue, passkeyPromptPath } from "@/lib/auth/passkey-prompt";
 
 const DEFAULT_LOCALE = "en";
 
@@ -178,6 +179,12 @@ export async function GET(req: NextRequest) {
     reg.searchParams.set("return_to", interactiveReturn);
     return NextResponse.redirect(reg);
   }
+
+  // Once a day, an account without a passkey is offered one on the way in.
+  if (await passkeyPromptDue(user.id))
+    return NextResponse.redirect(
+      new URL(passkeyPromptPath(locale, interactiveReturn), origin),
+    );
 
   if (client.trusted) {
     await prisma.appMembership.upsert({
