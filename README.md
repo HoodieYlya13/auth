@@ -11,12 +11,14 @@ carries their identity and **per-app roles**.
 - **Prisma 7** + PostgreSQL (Neon) via the `@prisma/adapter-pg` driver adapter, UUIDv7 ids
 - **jose** for RS256 JWT signing + JWKS
 - **@simplewebauthn** for passkeys, **Resend** for magic-link email
-- **Upstash Redis** for ephemeral state (challenges, magic-link tokens, auth codes) + rate limiting
+- **Upstash Redis** for ephemeral state (challenges, magic-link tokens and codes, auth codes) + rate limiting
 - **Cloudflare Turnstile** captcha, i18n (`en` / `fr`)
 
 ## How it works
 
-- **Auth methods.** A magic link verifies the email and creates the account; the user is
+- **Auth methods.** A magic link verifies the email and creates the account. The email
+  also carries a 6-digit code to type on the sign-in page instead (single use, newest code
+  only, five wrong tries end it), for whoever would rather not open the link in a new tab. The user is
   then offered a passkey for fast future logins, and again once a day per browser while they
   have none: on an email sign-in, the first page they load, or on the way into an app, then
   back to where they were headed. Login sets an httpOnly session cookie

@@ -18,9 +18,11 @@ import { safeReturnTo } from "@/lib/redirect";
 import { prisma } from "@/lib/db";
 import { createSession } from "@/lib/auth/session";
 import {
+  consumeMagicCode,
   createMagicLinkToken,
   sendMagicLinkEmail,
 } from "@/lib/auth/magic-link";
+import { finishMagicSignIn } from "@/lib/auth/magic-sign-in";
 import {
   finishPasskeyAuthentication,
   startPasskeyAuthentication,
@@ -110,20 +112,49 @@ export async function authenticateMagicLink(
   const emailLimit = await enforceRateLimit(() => checkEmailRateLimit(email));
   if (emailLimit) return emailLimit;
 
-  const token = await createMagicLinkToken({
+  const { token, code } = await createMagicLinkToken({
     email,
     locale: data.locale ?? DEFAULT_LOCALE,
     returnTo: safeReturnTo(data.returnTo),
   });
   const link = `${ISSUER}/auth/verify?token=${encodeURIComponent(token)}`;
 
-  const [sendError] = await tryCatch(sendMagicLinkEmail(email, link));
+  const [sendError] = await tryCatch(sendMagicLinkEmail(email, link, code));
   if (sendError) {
     console.error("Magic link send failed:", sendError);
     return { success: false, error: "Could not send the email. Try again." };
   }
 
   return { success: true };
+}
+
+export interface MagicCodeResult {
+  success: boolean;
+  redirectTo?: string;
+  error?: string;
+}
+
+/** The 6-digit code from the email, typed on the sign-in page instead of opening the link. */
+export async function verifyMagicCode(
+  email: string,
+  code: string,
+): Promise<MagicCodeResult> {
+  const rateLimitResult = await enforceRateLimit();
+  if (rateLimitResult) return { success: false, error: rateLimitResult.error };
+
+  const parsedEmail = z.email().max(254).safeParse(email?.trim().toLowerCase());
+  const digits = code?.replace(/\s/g, "");
+  if (!parsedEmail.success || !/^\d{6}$/.test(digits ?? ""))
+    return { success: false, error: "invalid_code" };
+
+  const payload = await consumeMagicCode(parsedEmail.data, digits);
+  if (!payload) return { success: false, error: "invalid_code" };
+
+  const redirectTo = await finishMagicSignIn(
+    payload,
+    (await headers()).get("user-agent") ?? undefined,
+  );
+  return { success: true, redirectTo };
 }
 
 export interface PasskeyBeginResult {

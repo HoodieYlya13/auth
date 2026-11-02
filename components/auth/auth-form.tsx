@@ -10,8 +10,9 @@ import {
   authenticateMagicLink,
   beginPasskeyAuthentication,
   finishPasskeyAuthenticationAction,
+  verifyMagicCode,
 } from "@/lib/actions/auth-actions";
-import { Fingerprint, Mail, Loader2 } from "lucide-react";
+import { ArrowLeft, Fingerprint, KeyRound, Mail, Loader2 } from "lucide-react";
 
 import { useSearchParams } from "next/navigation";
 import { tryCatch } from "@/lib/utils";
@@ -35,6 +36,12 @@ interface AuthFormProps {
     toastErrorEmail: string;
     toastErrorSpam: string;
     toastErrorPasskey: string;
+    codeTitle: string;
+    codeDescription: string;
+    codeLabel: string;
+    codeSubmit: string;
+    codeInvalid: string;
+    codeOtherEmail: string;
   };
 }
 
@@ -45,6 +52,8 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Where the link and code just went: the form then asks for the code.
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<
     "passkey" | "magic-link" | null
   >(null);
@@ -135,6 +144,7 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
 
     if (result.success) {
       toast.success(dict.toastSuccessMagicLink, { id: toastId });
+      setSentTo(email);
       setEmail("");
       setTurnstileToken(null);
       setShowCaptcha(false);
@@ -149,6 +159,9 @@ export function AuthForm({ locale, dict }: AuthFormProps) {
     setIsSubmitting(false);
     setActiveAction(null);
   };
+
+  if (sentTo)
+    return <CodeSection email={sentTo} onBack={() => setSentTo(null)} dict={dict} />;
 
   return (
     <div className="flex flex-col gap-5">
@@ -344,6 +357,107 @@ function MagicLinkSection({
           {dict.magicLinkDescription}
         </p>
       </div>
+    </form>
+  );
+}
+
+/** After the email: open the link, or type its code here and stay on this page. */
+function CodeSection({
+  email,
+  onBack,
+  dict,
+}: {
+  email: string;
+  onBack: () => void;
+  dict: AuthFormProps["dict"];
+}) {
+  const [code, setCode] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const submit = async (value: string) => {
+    if (isSubmitting || value.length !== 6) return;
+    setIsSubmitting(true);
+    const [error, result] = await tryCatch(verifyMagicCode(email, value));
+    if (!error && result?.success && result.redirectTo) {
+      window.location.href = result.redirectTo;
+      return;
+    }
+    setIsSubmitting(false);
+    setCode("");
+    toast.error(
+      result?.error && result.error !== "invalid_code"
+        ? result.error
+        : dict.codeInvalid,
+    );
+  };
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit(code);
+      }}
+      className="flex flex-col gap-5"
+    >
+      <div className="flex flex-col gap-1.5">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <Mail className="size-4" />
+          {dict.codeTitle}
+        </h2>
+        <p className="text-sm text-muted-foreground leading-normal break-words">
+          {dict.codeDescription.replace("{email}", email)}
+        </p>
+      </div>
+      <div className="flex flex-col gap-2">
+        <label
+          htmlFor="code"
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
+          {dict.codeLabel}
+        </label>
+        <Input
+          id="code"
+          name="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]{6}"
+          maxLength={6}
+          autoFocus
+          value={code}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+            setCode(digits);
+            // Six digits pasted or filled in from the email: no need to tap.
+            if (digits.length === 6) void submit(digits);
+          }}
+          placeholder="000000"
+          className="w-full h-11 bg-background/50 border-input text-center font-mono text-xl tracking-[0.5em]"
+          disabled={isSubmitting}
+          required
+        />
+      </div>
+      <Button
+        type="submit"
+        disabled={isSubmitting || code.length !== 6}
+        className="w-full h-9 cursor-pointer font-semibold shadow-xs flex items-center justify-center gap-2"
+      >
+        {isSubmitting ? (
+          <Loader2 className="animate-spin size-4 text-primary-foreground" />
+        ) : (
+          <KeyRound className="size-4" />
+        )}
+        {dict.codeSubmit}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onBack}
+        disabled={isSubmitting}
+        className="w-full h-9 cursor-pointer text-muted-foreground flex items-center justify-center gap-2"
+      >
+        <ArrowLeft className="size-4" />
+        {dict.codeOtherEmail}
+      </Button>
     </form>
   );
 }

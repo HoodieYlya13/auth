@@ -1,13 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { createSession } from "@/lib/auth/session";
 import {
   consumeMagicLinkToken,
   peekMagicLinkToken,
 } from "@/lib/auth/magic-link";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
-import { safeReturnTo } from "@/lib/redirect";
-import { passkeyPromptDue, passkeyPromptPath } from "@/lib/auth/passkey-prompt";
+import { finishMagicSignIn } from "@/lib/auth/magic-sign-in";
 
 const DEFAULT_LOCALE = "en";
 const TOKEN_FORMAT = /^[A-Za-z0-9_-]{20,100}$/;
@@ -89,31 +86,7 @@ export async function POST(req: NextRequest) {
   const payload = await consumeMagicLinkToken(token);
   if (!payload) return fail(req, "expired_link");
 
-  const user = await prisma.user.upsert({
-    where: { email: payload.email },
-    update: { emailVerifiedAt: new Date() },
-    create: { email: payload.email, emailVerifiedAt: new Date() },
-  });
-
-  await createSession(user.id, req.headers.get("user-agent") ?? undefined);
-
-  const locale = payload.locale && hasLocale(payload.locale) ? payload.locale : DEFAULT_LOCALE;
-  const returnTo = safeReturnTo(payload.returnTo);
-  const base = req.nextUrl.origin;
-
+  const next = await finishMagicSignIn(payload, req.headers.get("user-agent") ?? undefined);
   // 303: the browser follows with a GET.
-  if (!user.username) {
-    const reg = new URL(`/${locale}/auth/complete-registration`, base);
-    if (returnTo) reg.searchParams.set("return_to", returnTo);
-    return NextResponse.redirect(reg, 303);
-  }
-
-  // Signed in by email again: offer a passkey instead, once a day.
-  // Not when already headed for the passkey page (an app sent them there).
-  const toPrompt = returnTo?.split("?")[0] === `/${locale}/auth/passkey`;
-  if (!toPrompt && (await passkeyPromptDue(user.id))) {
-    return NextResponse.redirect(new URL(passkeyPromptPath(locale, returnTo), base), 303);
-  }
-
-  return NextResponse.redirect(new URL(returnTo ?? `/${locale}/account`, base), 303);
+  return NextResponse.redirect(new URL(next, req.nextUrl.origin), 303);
 }
