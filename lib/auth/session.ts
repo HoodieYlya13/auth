@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { forgetPasskeyReminder } from "@/lib/auth/passkey-prompt";
 import type { User } from "@/lib/generated/prisma/client";
 
 const COOKIE = "auth_session";
@@ -75,6 +76,7 @@ export async function destroySession(): Promise<void> {
     await endSession(id).catch(() => {});
     store.delete(COOKIE);
   }
+  await forgetPasskeyReminder();
 }
 
 /** A cookie whose session is gone (expired, revoked): dropped, nothing to end. */

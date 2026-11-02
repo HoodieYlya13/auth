@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { startRegistration } from "@simplewebauthn/browser";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   beginPasskeyRegistrationAction,
   finishPasskeyRegistrationAction,
+  markPasskeyPromptShown,
 } from "@/lib/actions/account-actions";
 import { tryCatch } from "@/lib/utils";
 
@@ -29,7 +30,13 @@ export function PasskeyPrompt({
   dict: PasskeyPromptDict;
 }) {
   const [busy, setBusy] = useState(false);
-  const goOn = () => {
+  // Seen today: no other prompt before tomorrow, on any page or app sign-in.
+  useEffect(() => {
+    void markPasskeyPromptShown().catch(() => {});
+  }, []);
+  // Marked again before leaving: the one above may not have landed yet.
+  const goOn = async () => {
+    await tryCatch(markPasskeyPromptShown());
     window.location.href = next;
   };
 
@@ -68,7 +75,7 @@ export function PasskeyPrompt({
       return;
     }
     toast.success(dict.added);
-    goOn();
+    void goOn();
   };
 
   return (
@@ -90,7 +97,10 @@ export function PasskeyPrompt({
         type="button"
         variant="ghost"
         disabled={busy}
-        onClick={goOn}
+        onClick={() => {
+          setBusy(true);
+          void goOn();
+        }}
         className="w-full h-9 cursor-pointer"
       >
         {dict.skip}

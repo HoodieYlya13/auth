@@ -37,6 +37,11 @@ export async function passkeyPromptDue(userId: string): Promise<boolean> {
   return !(await hasPasskey(userId));
 }
 
+/** Signed out: the next sign-in on this browser is offered a passkey again. */
+export async function forgetPasskeyReminder(): Promise<void> {
+  (await cookies()).delete(REMINDER_COOKIE);
+}
+
 /** Starts the day without another prompt. */
 export async function markPasskeyReminder(): Promise<void> {
   (await cookies()).set(REMINDER_COOKIE, "1", {

@@ -224,6 +224,14 @@ export async function removeAvatar(): Promise<ActionResult> {
   return { success: true };
 }
 
+/**
+ * The passkey page was shown: that's today's reminder, wherever it came from
+ * (an app links straight to it, without the redirect that marks the day).
+ */
+export async function markPasskeyPromptShown(): Promise<void> {
+  await markPasskeyReminder();
+}
+
 export interface PasskeyRegisterBegin {
   success: boolean;
   options?: Awaited<ReturnType<typeof startPasskeyRegistration>>;
