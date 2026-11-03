@@ -29,11 +29,14 @@ export function proxy(req: NextRequest) {
     (p) => rest === p || rest.startsWith(`${p}/`),
   );
   if (!isProtected) {
+    // Already signed in, maybe: app/api/auth/signed-in checks the session
+    // still exists before skipping the sign-in page (else it drops the cookie).
     if (rest === "/" && req.cookies.has(SESSION_COOKIE)) {
+      const url = new URL("/api/auth/signed-in", req.nextUrl.origin);
+      url.searchParams.set("lang", locale);
       const safe = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
-      return NextResponse.redirect(
-        new URL(safe ?? `/${locale}/account`, req.nextUrl.origin),
-      );
+      if (safe) url.searchParams.set("return_to", safe);
+      return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
