@@ -41,16 +41,29 @@ export async function rotateRefreshToken(
   });
   if (!record) return { ok: false };
 
-  // Rotated moments ago: a second tab or a retry refreshing at the same time,
-  // not a stolen token. Refused, but the family stays valid.
-  if (
-    record.usedAt &&
-    !record.revoked &&
-    Date.now() - record.usedAt.getTime() < REUSE_GRACE_MS
-  )
-    return { ok: false };
+  const successor = async (): Promise<RotateResult> => ({
+    ok: true,
+    userId: record.userId,
+    clientDbId: record.clientId,
+    scope: record.scope,
+    token: await issueRefreshToken({
+      userId: record.userId,
+      clientDbId: record.clientId,
+      scope: record.scope,
+      familyId: record.familyId,
+      sessionId: record.sessionId,
+    }),
+  });
 
-  if (record.revoked || record.usedAt || record.expiresAt < new Date()) {
+  // Rotated moments ago: a second tab or request refreshing at the same time,
+  // not a stolen token. It gets a token of the same family too: refused, the
+  // client would sign the user out, overwriting the winner's fresh token.
+  const racing = (usedAt: Date | null) =>
+    !!usedAt && Date.now() - usedAt.getTime() < REUSE_GRACE_MS;
+
+  if (record.revoked || record.expiresAt < new Date()) return { ok: false };
+  if (racing(record.usedAt)) return successor();
+  if (record.usedAt) {
     await prisma.refreshToken.updateMany({
       where: { familyId: record.familyId },
       data: { revoked: true },
@@ -63,21 +76,10 @@ export async function rotateRefreshToken(
     where: { id: record.id, usedAt: null, revoked: false },
     data: { usedAt: new Date() },
   });
-  if (claimed.count !== 1) return { ok: false };
-
-  const token = await issueRefreshToken({
-    userId: record.userId,
-    clientDbId: record.clientId,
-    scope: record.scope,
-    familyId: record.familyId,
-    sessionId: record.sessionId,
-  });
-
-  return {
-    ok: true,
-    userId: record.userId,
-    clientDbId: record.clientId,
-    scope: record.scope,
-    token,
-  };
+  // Lost the race by a hair: the same grace as above.
+  if (claimed.count !== 1) {
+    const now = await prisma.refreshToken.findUnique({ where: { id: record.id } });
+    return now && !now.revoked && racing(now.usedAt) ? successor() : { ok: false };
+  }
+  return successor();
 }
