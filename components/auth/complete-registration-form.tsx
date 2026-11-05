@@ -68,6 +68,8 @@ export function CompleteRegistrationForm({
       <Field label={dict.usernameLabel} htmlFor="username">
         <Input
           id="username"
+          autoCorrect="off"
+          spellCheck={false}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder={dict.usernamePlaceholder}
@@ -90,6 +92,8 @@ export function CompleteRegistrationForm({
         >
           <Input
             id="firstName"
+            autoCorrect="off"
+            spellCheck={false}
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             autoComplete="given-name"
@@ -104,6 +108,8 @@ export function CompleteRegistrationForm({
         >
           <Input
             id="lastName"
+            autoCorrect="off"
+            spellCheck={false}
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             autoComplete="family-name"

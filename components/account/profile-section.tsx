@@ -63,6 +63,8 @@ export function ProfileSection({
         <Labelled label={dict.usernameLabel} htmlFor="username">
           <Input
             id="username"
+            autoCorrect="off"
+            spellCheck={false}
             autoComplete="username"
             value={values.username}
             onChange={(e) => set("username")(e.target.value)}
@@ -76,6 +78,8 @@ export function ProfileSection({
           <Labelled label={dict.firstNameLabel} htmlFor="firstName">
             <Input
               id="firstName"
+              autoCorrect="off"
+              spellCheck={false}
               autoComplete="given-name"
               value={values.firstName}
               onChange={(e) => set("firstName")(e.target.value)}
@@ -86,6 +90,8 @@ export function ProfileSection({
           <Labelled label={dict.lastNameLabel} htmlFor="lastName">
             <Input
               id="lastName"
+              autoCorrect="off"
+              spellCheck={false}
               autoComplete="family-name"
               value={values.lastName}
               onChange={(e) => set("lastName")(e.target.value)}

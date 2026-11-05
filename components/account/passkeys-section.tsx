@@ -235,6 +235,8 @@ export function PasskeysSection({
             </DialogHeader>
             <Input
               autoFocus
+              autoCorrect="off"
+              spellCheck={false}
               value={nameDialog?.value ?? ""}
               onChange={(e) =>
                 setNameDialog((prev) =>

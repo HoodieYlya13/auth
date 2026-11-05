@@ -310,6 +310,8 @@ function MagicLinkSection({
         </label>
         <Input
           id="email"
+          autoCorrect="off"
+          spellCheck={false}
           name="email"
           type="email"
           autoComplete="email"
