@@ -26,6 +26,8 @@ carries their identity and **per-app roles**.
 - **Registration gate.** A user must set a **username** (first/last name and birthday are
   optional) before they can be redirected to any app.
 - **OIDC.** Authorization Code + PKCE (S256 only), RS256 signed tokens, discovery + JWKS.
+  Browser apps (public clients) may call the token and userinfo endpoints from the
+  origins of their registered redirect URIs (CORS); confidential clients never from a browser.
   Access tokens are self-contained (identity claims + `roles` for the audience app +
   `admin`), ~15 min TTL. Tokens and userinfo carry `no_passkey: true` while the account has
   no passkey (left out once it has one), so apps can suggest adding one. Refresh tokens rotate with **reuse detection** (replay revokes the
@@ -67,10 +69,10 @@ PEM (`OIDC_PRIVATE_KEY` / `OIDC_PUBLIC_KEY` / `OIDC_KEY_ID`).
 With the dev server running:
 
 ```bash
-bun scripts/verify-oidc.mjs        # full flow, 29 checks (BASE_URL= to override port)
+bun scripts/verify-oidc.mjs        # full flow, 33 checks (BASE_URL= to override port)
 npx fallow                         # dead-code / duplication / health
 ```
 
 `verify-oidc.mjs` drives discovery + JWKS, magic-link login, the consent gate, the
-PKCE authorize → code → token exchange, token validation against JWKS, userinfo, refresh
+PKCE authorize → code → token exchange, token validation against JWKS, userinfo, CORS for browser apps, refresh
 rotation, and refresh reuse-detection, cleaning up its test data afterward.

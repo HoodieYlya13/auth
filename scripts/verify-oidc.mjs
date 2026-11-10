@@ -193,6 +193,37 @@ try {
   });
   check("userinfo: an ID token isn't an access token", uiWithIdToken.status === 401);
 
+  // --- CORS: browser apps on a registered origin can read; other sites can't ---
+  const APP_ORIGIN = new URL(REDIRECT).origin;
+  const preflightFrom = (path, origin) =>
+    fetch(`${BASE}${path}`, {
+      method: "OPTIONS",
+      headers: { origin, "access-control-request-method": "POST" },
+    });
+  const allowedOrigin = (response) =>
+    response.headers.get("access-control-allow-origin");
+  check(
+    "cors: token preflight allows the client's origin",
+    allowedOrigin(await preflightFrom("/api/oidc/token", APP_ORIGIN)) === APP_ORIGIN,
+  );
+  check(
+    "cors: token preflight refuses another origin",
+    allowedOrigin(await preflightFrom("/api/oidc/token", "https://evil.example")) === null,
+  );
+  const uiFromApp = await fetch(`${BASE}/api/oidc/userinfo`, {
+    headers: { authorization: `Bearer ${tokens.access_token}`, origin: APP_ORIGIN },
+  });
+  check("cors: userinfo readable from the client's origin", allowedOrigin(uiFromApp) === APP_ORIGIN);
+  const errorFromApp = await fetch(`${BASE}/api/oidc/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", origin: APP_ORIGIN },
+    body: new URLSearchParams({ grant_type: "authorization_code", client_id: client.clientId }),
+  });
+  check(
+    "cors: token errors are readable too, so the app can tell what went wrong",
+    errorFromApp.status === 400 && allowedOrigin(errorFromApp) === APP_ORIGIN,
+  );
+
   // --- Consumed code can't be reused ---
   const replay = await form({
     grant_type: "authorization_code",

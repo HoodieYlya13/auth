@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db";
 import { safeEqual, sha256Base64Url } from "@/lib/crypto";
+import { webOrigins } from "@/lib/oidc/cors";
 import { SUPPORTED_SCOPES } from "@/lib/oidc/discovery";
 import type { Client } from "@/lib/generated/prisma/client";
 
@@ -76,14 +77,7 @@ export function homeUrlProblem(
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local))
     return `"${uri}" must use https.`;
-  const origins = redirectUris.flatMap((r) => {
-    try {
-      return [new URL(r).origin];
-    } catch {
-      return [];
-    }
-  });
-  if (!origins.includes(url.origin))
+  if (!webOrigins(redirectUris).includes(url.origin))
     return `"${uri}" must be on the same origin as a redirect URI.`;
   return null;
 }

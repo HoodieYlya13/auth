@@ -8,6 +8,7 @@ import {
   passkeyClaims,
   parseScopes,
 } from "@/lib/oidc/tokens";
+import { preflight, withCors } from "@/lib/oidc/cors";
 import { tryCatch } from "@/lib/utils";
 import { hasPasskey } from "@/lib/auth/passkey-prompt";
 
@@ -20,7 +21,7 @@ function unauthorized() {
   });
 }
 
-async function handle(req: NextRequest) {
+async function claims(req: NextRequest) {
   const header = req.headers.get("authorization");
   const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) return unauthorized();
@@ -53,5 +54,13 @@ async function handle(req: NextRequest) {
   );
 }
 
+async function handle(req: NextRequest) {
+  return withCors(req, await claims(req));
+}
+
 export const GET = handle;
 export const POST = handle;
+
+export function OPTIONS(req: NextRequest) {
+  return preflight(req, ["GET", "POST"]);
+}

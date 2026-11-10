@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getClient, verifyClientSecret } from "@/lib/oidc/clients";
+import { preflight, withCors } from "@/lib/oidc/cors";
 import { consumeAuthCode, verifyPkce } from "@/lib/oidc/codes";
 import { issueRefreshToken, rotateRefreshToken } from "@/lib/oidc/refresh";
 import { resolveRoles } from "@/lib/roles";
@@ -71,13 +72,23 @@ async function buildTokenResponse(
   );
 }
 
+export function OPTIONS(req: NextRequest) {
+  return preflight(req, ["POST"]);
+}
+
 export async function POST(req: NextRequest) {
   const form = await req.formData();
-  const grantType = form.get("grant_type");
   const { clientId, clientSecret } = readClientCredentials(req, form);
+  const client = clientId ? await getClient(clientId) : null;
+  return withCors(req, await exchange(form, client, clientSecret), client);
+}
 
-  if (!clientId) return tokenError("invalid_client", 401);
-  const client = await getClient(clientId);
+async function exchange(
+  form: FormData,
+  client: Client | null,
+  clientSecret: string | undefined,
+) {
+  const grantType = form.get("grant_type");
   if (!client) return tokenError("invalid_client", 401);
   if (!verifyClientSecret(client, clientSecret)) {
     return tokenError("invalid_client", 401);
