@@ -32,9 +32,19 @@ carries their identity and **per-app roles**.
   `admin`), ~15 min TTL. Tokens and userinfo carry `no_passkey: true` while the account has
   no passkey (left out once it has one), so apps can suggest adding one. Refresh tokens rotate with **reuse detection** (replay revokes the
   whole family).
+- **Back-Channel Logout** (OIDC Back-Channel Logout 1.0). ID tokens carry `sid`, the
+  sign-in they belong to. When a sign-in ends (signing out, the logout endpoint, or
+  revoking a device on the account page), every app that holds a refresh token from it and
+  registered a back-channel logout URI receives a `logout+jwt` logout token by POST, so it
+  ends its own session at once instead of at its next refresh. Delivery waits at most
+  5 s per app, and one failing app never blocks the others.
 - **Consent.** First time a user links a non-`trusted` app they approve a consent screen;
   the link is remembered and revocable from account settings. `trusted` first-party apps
-  skip consent.
+  skip consent, but on first use the user confirms the account ("Continue as …"), unless
+  they signed in moments ago. Both screens offer "Use another account".
+- **`prompt`.** `none` never shows a page (returns `login_required`,
+  `interaction_required` or `consent_required`), `login` forces a fresh sign-in,
+  `select_account` and `consent` force the confirmation screen.
 - **Roles.** Per-app roles from a per-client list, assigned by the admin. The configured
   `ADMIN_EMAIL` is `admin: true` everywhere (computed from env, never stored).
 - **Admin dashboard** (`/[lang]/admin`, gated to `ADMIN_EMAIL`): register apps (redirect
@@ -69,10 +79,11 @@ PEM (`OIDC_PRIVATE_KEY` / `OIDC_PUBLIC_KEY` / `OIDC_KEY_ID`).
 With the dev server running:
 
 ```bash
-bun scripts/verify-oidc.mjs        # full flow, 33 checks (BASE_URL= to override port)
+bun scripts/verify-oidc.mjs        # full flow, 37 checks (BASE_URL= to override port)
 npx fallow                         # dead-code / duplication / health
 ```
 
 `verify-oidc.mjs` drives discovery + JWKS, magic-link login, the consent gate, the
 PKCE authorize → code → token exchange, token validation against JWKS, userinfo, CORS for browser apps, refresh
-rotation, and refresh reuse-detection, cleaning up its test data afterward.
+rotation, refresh reuse-detection, and back-channel logout (a local listener receives the
+logout token and checks it against JWKS), cleaning up its test data afterward.
