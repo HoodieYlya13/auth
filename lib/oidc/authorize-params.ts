@@ -1,5 +1,6 @@
 import "server-only";
 import { safeReturnTo } from "@/lib/redirect";
+import { parsePrompt, type Prompt } from "@/lib/oidc/prompt";
 
 export interface AuthorizeParams {
   /** The authorize request as a path on this site, safe to redirect to. */
@@ -8,6 +9,7 @@ export interface AuthorizeParams {
   redirectUri: string;
   scope: string;
   state?: string;
+  prompts: Set<Prompt>;
 }
 
 /**
@@ -31,5 +33,6 @@ export function parseAuthorizeReturnTo(
     redirectUri,
     scope: url.searchParams.get("scope") ?? "openid",
     state: url.searchParams.get("state") ?? undefined,
+    prompts: parsePrompt(url.searchParams.get("prompt")) ?? new Set(),
   };
 }

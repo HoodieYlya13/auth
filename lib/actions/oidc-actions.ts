@@ -1,13 +1,18 @@
 "use server";
 
-import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth/session";
+import { destroySession, getCurrentUser } from "@/lib/auth/session";
 import {
   getClient,
   grantableScopes,
   isValidRedirectUri,
 } from "@/lib/oidc/clients";
-import { parseAuthorizeReturnTo } from "@/lib/oidc/authorize-params";
+import {
+  parseAuthorizeReturnTo,
+  type AuthorizeParams,
+} from "@/lib/oidc/authorize-params";
+import { linkApp } from "@/lib/oidc/app-link";
+import { withoutPrompt } from "@/lib/oidc/prompt";
+import type { Client } from "@/lib/generated/prisma/client";
 
 export interface ConsentResult {
   success: boolean;
@@ -15,47 +20,47 @@ export interface ConsentResult {
   error?: string;
 }
 
+async function resolveAuthorizeRequest(
+  returnTo: string,
+): Promise<{ parsed: AuthorizeParams; client: Client } | null> {
+  const parsed = parseAuthorizeReturnTo(returnTo);
+  if (!parsed) return null;
+  const client = await getClient(parsed.clientId);
+  if (!client || !isValidRedirectUri(client, parsed.redirectUri)) return null;
+  return { parsed, client };
+}
+
 export async function approveConsent(returnTo: string): Promise<ConsentResult> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "You are not signed in." };
 
-  const parsed = parseAuthorizeReturnTo(returnTo);
-  if (!parsed) return { success: false, error: "Invalid authorization request." };
+  const request = await resolveAuthorizeRequest(returnTo);
+  if (!request) return { success: false, error: "Invalid authorization request." };
 
-  const client = await getClient(parsed.clientId);
-  if (!client || !isValidRedirectUri(client, parsed.redirectUri))
-    return { success: false, error: "Unknown application." };
+  const { parsed, client } = request;
+  await linkApp(user.id, client, grantableScopes(client, parsed.scope));
+  return { success: true, redirectTo: withoutPrompt(parsed.path) };
+}
 
-  const granted = grantableScopes(client, parsed.scope);
-  const membership = await prisma.appMembership.findUnique({
-    where: { userId_clientId: { userId: user.id, clientId: client.id } },
-    select: { scopesGranted: true },
-  });
-  await prisma.appMembership.upsert({
-    where: { userId_clientId: { userId: user.id, clientId: client.id } },
-    // Adds to what was agreed before rather than replacing it.
-    update: {
-      scopesGranted: [...new Set([...(membership?.scopesGranted ?? []), ...granted])],
-    },
-    create: {
-      userId: user.id,
-      clientId: client.id,
-      roles: client.defaultRoles.length ? client.defaultRoles : ["USER"],
-      scopesGranted: granted,
-    },
-  });
+/** Signs out, then back to the sign-in page to go on with this request as someone else. */
+export async function switchAccount(
+  returnTo: string,
+  locale: string,
+): Promise<ConsentResult> {
+  const request = await resolveAuthorizeRequest(returnTo);
+  if (!request) return { success: false, error: "Invalid authorization request." };
 
-  return { success: true, redirectTo: parsed.path };
+  await destroySession();
+  const signIn = new URLSearchParams({ return_to: withoutPrompt(request.parsed.path) });
+  return { success: true, redirectTo: `/${locale}?${signIn}` };
 }
 
 export async function denyConsent(returnTo: string): Promise<ConsentResult> {
-  const parsed = parseAuthorizeReturnTo(returnTo);
-  if (!parsed) return { success: false, error: "Invalid authorization request." };
   // Only back to a URI the app registered: otherwise "Cancel" could send anyone anywhere.
-  const client = await getClient(parsed.clientId);
-  if (!client || !isValidRedirectUri(client, parsed.redirectUri))
-    return { success: false, error: "Invalid authorization request." };
+  const request = await resolveAuthorizeRequest(returnTo);
+  if (!request) return { success: false, error: "Invalid authorization request." };
 
+  const { parsed } = request;
   const url = new URL(parsed.redirectUri);
   url.searchParams.set("error", "access_denied");
   if (parsed.state) url.searchParams.set("state", parsed.state);

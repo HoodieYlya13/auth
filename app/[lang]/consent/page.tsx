@@ -1,15 +1,16 @@
 import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
-import { getCurrentUser } from "@/lib/auth/session";
+import { getSession } from "@/lib/auth/session";
+import { isRecentSignIn, signedInAt } from "@/lib/auth/recent-sign-in";
 import {
-  consentCovers,
   getClient,
   grantableScopes,
   isValidRedirectUri,
 } from "@/lib/oidc/clients";
 import { parseAuthorizeReturnTo } from "@/lib/oidc/authorize-params";
-import { prisma } from "@/lib/db";
+import { findAppLink, needsConfirmation } from "@/lib/oidc/app-link";
+import { withoutPrompt } from "@/lib/oidc/prompt";
 import { ConsentForm } from "@/components/auth/consent-form";
 import { Suspense } from "react";
 
@@ -45,8 +46,9 @@ async function ConsentSection({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
   dict: Awaited<ReturnType<typeof getDictionary>>;
 }) {
-  const user = await getCurrentUser();
-  if (!user) redirect(`/${lang}`);
+  const session = await getSession();
+  if (!session) redirect(`/${lang}`);
+  const { user } = session;
 
   const { return_to } = await searchParams;
   const returnTo = typeof return_to === "string" ? return_to : undefined;
@@ -58,11 +60,19 @@ async function ConsentSection({
     redirect(`/${lang}/account`);
 
   const scopes = grantableScopes(client, parsed.scope);
-  const membership = await prisma.appMembership.findUnique({
-    where: { userId_clientId: { userId: user.id, clientId: client.id } },
+  const isConfirmationNeeded = needsConfirmation({
+    client,
+    link: await findAppLink(user.id, client.id),
+    scopes,
+    prompts: parsed.prompts,
+    hasJustSignedIn: isRecentSignIn(await signedInAt(session.sessionId)),
   });
-  if (membership && consentCovers(membership.scopesGranted, scopes))
-    redirect(parsed.path);
+  if (!isConfirmationNeeded) redirect(withoutPrompt(parsed.path));
+
+  const title = client.trusted ? dict.consent.continueTitle : dict.consent.title;
+  const description = client.trusted
+    ? dict.consent.continueDescription
+    : dict.consent.description;
 
   return (
     <div className="relative z-10 w-full max-w-md bg-card text-card-foreground border border-border rounded-2xl p-8 shadow-md">
@@ -71,17 +81,19 @@ async function ConsentSection({
           <ShieldCheck className="size-5" strokeWidth={2.5} />
         </div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {dict.consent.title.replace("{app}", client.name)}
+          {title.replace("{app}", client.name)}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {dict.consent.description.replace("{app}", client.name)}
+          {description.replace("{app}", client.name)}
         </p>
       </div>
 
       <ConsentForm
         returnTo={parsed.path}
-        email={user.email}
-        scopes={scopes}
+        locale={lang}
+        account={{ username: user.username, email: user.email }}
+        scopes={client.trusted ? [] : scopes}
+        approveLabel={client.trusted ? dict.consent.continue : dict.consent.approve}
         dict={dict.consent}
       />
     </div>

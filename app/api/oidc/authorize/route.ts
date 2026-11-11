@@ -1,13 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import {
-  consentCovers,
   getClient,
   grantableScopes,
   isValidRedirectUri,
   redirectUriProblem,
 } from "@/lib/oidc/clients";
+import { findAppLink, linkApp, needsConfirmation } from "@/lib/oidc/app-link";
+import { parsePrompt } from "@/lib/oidc/prompt";
+import { isRecentSignIn, signedInAt } from "@/lib/auth/recent-sign-in";
 import { issueAuthCode } from "@/lib/oidc/codes";
 import {
   getDictionary,
@@ -62,6 +63,18 @@ function badRequest(message: string) {
     status: 400,
     headers: { "content-type": "text/plain" },
   });
+}
+
+function signInRedirect(
+  origin: string,
+  locale: Locale,
+  returnTo: string,
+  isReauthentication = false,
+): NextResponse {
+  const login = new URL(`/${locale}`, origin);
+  login.searchParams.set("return_to", returnTo);
+  if (isReauthentication) login.searchParams.set("reauth", "1");
+  return NextResponse.redirect(login);
 }
 
 function isWebRedirect(url: URL): boolean {
@@ -151,6 +164,11 @@ export async function GET(req: NextRequest) {
   if (!codeChallenge || codeChallengeMethod !== "S256")
     return redirectError("invalid_request", "PKCE with S256 is required");
 
+  const prompts = parsePrompt(p.get("prompt"));
+  if (!prompts)
+    return redirectError("invalid_request", "prompt=none can't be combined with other values");
+  const isSilent = prompts.has("none");
+
   if (!scope.split(/\s+/).includes("openid"))
     return redirectError("invalid_scope", "openid scope is required");
   const granted = grantableScopes(client, scope);
@@ -167,47 +185,39 @@ export async function GET(req: NextRequest) {
   })();
 
   const session = await getSession();
-  const user = session?.user ?? null;
-  if (!session || !user) {
-    const login = new URL(`/${locale}`, origin);
-    login.searchParams.set("return_to", interactiveReturn);
-    return NextResponse.redirect(login);
+  if (!session) {
+    if (isSilent) return redirectError("login_required");
+    return signInRedirect(origin, locale, interactiveReturn);
   }
+  const { user } = session;
+  const signInTime = await signedInAt(session.sessionId);
+  const hasJustSignedIn = isRecentSignIn(signInTime);
+
+  if (prompts.has("login") && !hasJustSignedIn)
+    return signInRedirect(origin, locale, interactiveReturn, true);
 
   if (!user.username) {
+    if (isSilent) return redirectError("interaction_required");
     const reg = new URL(`/${locale}/auth/complete-registration`, origin);
     reg.searchParams.set("return_to", interactiveReturn);
     return NextResponse.redirect(reg);
   }
 
   // Once a day, an account without a passkey is offered one on the way in.
-  if (await passkeyPromptDue(user.id))
+  if (!isSilent && (await passkeyPromptDue(user.id)))
     return NextResponse.redirect(
       new URL(passkeyPromptPath(locale, interactiveReturn), origin),
     );
 
-  if (client.trusted) {
-    await prisma.appMembership.upsert({
-      where: { userId_clientId: { userId: user.id, clientId: client.id } },
-      update: {},
-      create: {
-        userId: user.id,
-        clientId: client.id,
-        roles: client.defaultRoles.length ? client.defaultRoles : ["USER"],
-        scopesGranted: granted,
-      },
-    });
-  } else {
-    const membership = await prisma.appMembership.findUnique({
-      where: { userId_clientId: { userId: user.id, clientId: client.id } },
-    });
-    // Asked again when the app wants more than the user agreed to.
-    if (!membership || !consentCovers(membership.scopesGranted, granted)) {
-      const consent = new URL(`/${locale}/consent`, origin);
-      consent.searchParams.set("return_to", interactiveReturn);
-      return NextResponse.redirect(consent);
-    }
+  const link = await findAppLink(user.id, client.id);
+  if (needsConfirmation({ client, link, scopes: granted, prompts, hasJustSignedIn })) {
+    if (isSilent)
+      return redirectError(client.trusted ? "interaction_required" : "consent_required");
+    const consent = new URL(`/${locale}/consent`, origin);
+    consent.searchParams.set("return_to", interactiveReturn);
+    return NextResponse.redirect(consent);
   }
+  if (!link) await linkApp(user.id, client, granted);
 
   const code = await issueAuthCode({
     userId: user.id,
@@ -216,7 +226,7 @@ export async function GET(req: NextRequest) {
     scope: grantedScope,
     codeChallenge,
     nonce,
-    authTime: Math.floor(Date.now() / 1000),
+    authTime: Math.floor((signInTime ?? new Date()).getTime() / 1000),
     sessionId: session.sessionId,
   });
 

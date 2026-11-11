@@ -31,7 +31,8 @@ export function proxy(req: NextRequest) {
   if (!isProtected) {
     // Already signed in, maybe: app/api/auth/signed-in checks the session
     // still exists before skipping the sign-in page (else it drops the cookie).
-    if (rest === "/" && req.cookies.has(SESSION_COOKIE)) {
+    const isReauthentication = req.nextUrl.searchParams.get("reauth") === "1";
+    if (rest === "/" && req.cookies.has(SESSION_COOKIE) && !isReauthentication) {
       const url = new URL("/api/auth/signed-in", req.nextUrl.origin);
       url.searchParams.set("lang", locale);
       const safe = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
