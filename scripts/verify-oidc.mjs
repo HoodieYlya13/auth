@@ -1,9 +1,11 @@
 // End-to-end verification of the OIDC identity provider.
 // Drives the full Authorization Code + PKCE flow against a running dev server,
-// validates tokens against JWKS, and exercises refresh rotation + reuse detection.
+// validates tokens against JWKS, exercises refresh rotation + reuse detection,
+// and receives the back-channel logout token sent when the sign-in ends.
 //
 // Usage: bun scripts/verify-oidc.mjs   (optionally BASE_URL=http://localhost:3001)
 import { createHash, randomBytes } from "node:crypto";
+import { createServer } from "node:http";
 import { Redis } from "@upstash/redis";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { createRemoteJWKSet, jwtVerify } from "jose";
@@ -36,6 +38,32 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.POSTGRES_PRISMA_URL }),
 });
 
+// Stands in for an app's back-channel logout endpoint: resolves with the first logout token POSTed to it.
+function startBackChannelReceiver() {
+  let receive;
+  const received = new Promise((resolve) => (receive = resolve));
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => (body += chunk));
+    req.on("end", () => {
+      receive(new URLSearchParams(body).get("logout_token"));
+      res.writeHead(200).end();
+    });
+  });
+  return new Promise((resolve) =>
+    server.listen(0, "127.0.0.1", () =>
+      resolve({
+        server,
+        received,
+        uri: `http://127.0.0.1:${server.address().port}/backchannel-logout`,
+      }),
+    ),
+  );
+}
+const within = (promise, ms) =>
+  Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(null), ms))]);
+
+const backChannel = await startBackChannelReceiver();
 const verifier = randomBytes(32).toString("base64url");
 const challenge = createHash("sha256").update(verifier).digest("base64url");
 
@@ -55,6 +83,11 @@ try {
     "discovery: authorization_code + refresh_token",
     disco.grant_types_supported?.includes("authorization_code") &&
       disco.grant_types_supported?.includes("refresh_token"),
+  );
+  check(
+    "discovery: back-channel logout, with sessions",
+    disco.backchannel_logout_supported === true &&
+      disco.backchannel_logout_session_supported === true,
   );
   const jwks = await (await fetch(`${BASE}/.well-known/jwks.json`)).json();
   check("jwks: has signing key", (jwks.keys?.length ?? 0) >= 1);
@@ -92,6 +125,7 @@ try {
       clientId: `test-${Date.now()}`,
       name: "Verification App",
       redirectUris: [REDIRECT],
+      backchannelLogoutUri: backChannel.uri,
       trusted: false,
       allowedScopes: ["openid", "profile", "email", "offline_access"],
     },
@@ -177,6 +211,7 @@ try {
     audience: client.clientId,
   });
   check("id token: nonce echoed", idt.nonce === "nnn");
+  check("id token: sid names the sign-in", typeof idt.sid === "string");
 
   // --- UserInfo ---
   const ui = await (
@@ -270,6 +305,24 @@ try {
     redirect: "manual",
   });
   check("logout: redirects", logout.status === 307 || logout.status === 302);
+
+  // --- Back-channel logout: the app hears that the sign-in ended ---
+  const logoutToken = await within(backChannel.received, 5_000);
+  check("back-channel: logout token delivered", Boolean(logoutToken));
+  if (logoutToken) {
+    const { payload: lt } = await jwtVerify(logoutToken, JWKS, {
+      issuer: ISSUER,
+      audience: client.clientId,
+      typ: "logout+jwt",
+    });
+    check(
+      "back-channel: logout event, same sid and sub as the ID token, no nonce",
+      typeof lt.events?.["http://schemas.openid.net/event/backchannel-logout"] === "object" &&
+        lt.sid === idt.sid &&
+        lt.sub === user.id &&
+        lt.nonce === undefined,
+    );
+  }
 } finally {
   // Cleanup
   if (user) {
@@ -281,6 +334,7 @@ try {
     await prisma.client.delete({ where: { id: client.id } }).catch(() => {});
   if (user)
     await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+  backChannel.server.close();
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

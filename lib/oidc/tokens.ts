@@ -108,6 +108,7 @@ export async function signIdToken(opts: {
   scope: string;
   nonce?: string;
   authTime?: number;
+  sessionId?: string | null;
   hasPasskey: boolean;
 }): Promise<string> {
   const payload = {
@@ -116,7 +117,29 @@ export async function signIdToken(opts: {
   };
   if (opts.nonce) payload.nonce = opts.nonce;
   if (opts.authTime) payload.auth_time = opts.authTime;
+  // The sign-in this token belongs to: a back-channel logout token names it too.
+  if (opts.sessionId) payload.sid = opts.sessionId;
   return sign(payload, opts.user.id, opts.clientId, ID_TOKEN_TTL);
+}
+
+const LOGOUT_TOKEN_TYP = "logout+jwt";
+const BACKCHANNEL_LOGOUT_EVENT =
+  "http://schemas.openid.net/event/backchannel-logout";
+const LOGOUT_TOKEN_TTL = 120;
+
+/** OIDC Back-Channel Logout 1.0 §2.4: tells one app that a sign-in ended. */
+export async function signLogoutToken(opts: {
+  clientId: string;
+  userId: string;
+  sessionId: string;
+}): Promise<string> {
+  return sign(
+    { events: { [BACKCHANNEL_LOGOUT_EVENT]: {} }, sid: opts.sessionId },
+    opts.userId,
+    opts.clientId,
+    LOGOUT_TOKEN_TTL,
+    LOGOUT_TOKEN_TYP,
+  );
 }
 
 export const TTL = { access: ACCESS_TOKEN_TTL, id: ID_TOKEN_TTL };

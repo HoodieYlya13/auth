@@ -59,15 +59,8 @@ export function redirectUriProblem(uri: string): string | null {
   return null;
 }
 
-/**
- * Why a home URL can't be registered, or null when it can. It is shown as a
- * link on the account page, so it must be a web URL (https, or http on
- * localhost) on the same origin as one of the app's redirect URIs.
- */
-export function homeUrlProblem(
-  uri: string,
-  redirectUris: string[],
-): string | null {
+/** Why a URI isn't a web URL this server will use (https, or http on localhost), or null when it is. */
+function webUrlProblem(uri: string): string | null {
   let url: URL;
   try {
     url = new URL(uri);
@@ -77,8 +70,34 @@ export function homeUrlProblem(
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local))
     return `"${uri}" must use https.`;
-  if (!webOrigins(redirectUris).includes(url.origin))
+  return null;
+}
+
+/**
+ * Why a home URL can't be registered, or null when it can. It is shown as a
+ * link on the account page, so it must be a web URL on the same origin as one
+ * of the app's redirect URIs.
+ */
+export function homeUrlProblem(
+  uri: string,
+  redirectUris: string[],
+): string | null {
+  const problem = webUrlProblem(uri);
+  if (problem) return problem;
+  if (!webOrigins(redirectUris).includes(new URL(uri).origin))
     return `"${uri}" must be on the same origin as a redirect URI.`;
+  return null;
+}
+
+/**
+ * Why a back-channel logout URI can't be registered, or null when it can. This
+ * server POSTs logout tokens to it, so it must be a web URL, without a
+ * fragment (OIDC Back-Channel Logout 1.0 §2.2).
+ */
+export function backchannelLogoutUriProblem(uri: string): string | null {
+  const problem = webUrlProblem(uri);
+  if (problem) return problem;
+  if (uri.includes("#")) return `"${uri}" must not contain a fragment (#).`;
   return null;
 }
 

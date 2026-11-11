@@ -165,6 +165,8 @@
     "formPostLogout": "URI de redirection après déconnexion",
     "formHomeUrl": "URL d'accueil de l'app",
     "formHomeUrlHint": "Facultatif. Affichée comme « Retour à l'app » quand l'utilisateur ouvre son compte depuis cette app (?client_id=…). Doit avoir la même origine qu'une URI de redirection.",
+    "formBackchannelLogout": "URI de déconnexion back-channel",
+    "formBackchannelLogoutHint": "Facultatif. Quand une connexion qui a donné des jetons à cette app se termine, un jeton de déconnexion y est envoyé (POST) pour que l’app termine sa session aussitôt (OIDC Back-Channel Logout). Doit être joignable depuis ce serveur.",
     "formRoles": "Rôles",
     "formRolesHint": "Noms de rôles séparés par des virgules pour cette app.",
     "formDefaultRoles": "Rôles par défaut",

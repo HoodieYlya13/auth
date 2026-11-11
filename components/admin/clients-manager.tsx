@@ -23,6 +23,7 @@ interface ClientView {
   redirectUris: string[];
   postLogoutRedirectUris: string[];
   homeUrl: string | null;
+  backchannelLogoutUri: string | null;
   trusted: boolean;
   roles: string[];
   defaultRoles: string[];
@@ -239,6 +240,9 @@ function ClientForm({
     (initial?.postLogoutRedirectUris ?? []).join("\n"),
   );
   const [homeUrl, setHomeUrl] = useState(initial?.homeUrl ?? "");
+  const [backchannelLogoutUri, setBackchannelLogoutUri] = useState(
+    initial?.backchannelLogoutUri ?? "",
+  );
   const [roles, setRoles] = useState(
     (initial?.roles ?? ["USER", "ADMIN"]).join(", "),
   );
@@ -266,6 +270,7 @@ function ClientForm({
           redirectUris,
           postLogoutRedirectUris: postLogout,
           homeUrl,
+          backchannelLogoutUri,
           roles,
           defaultRoles,
           allowedScopes: scopes,
@@ -306,6 +311,18 @@ function ClientForm({
           type="url"
           value={homeUrl}
           onChange={(e) => setHomeUrl(e.target.value)}
+          placeholder="https://"
+          className="h-9"
+        />
+      </FormRow>
+      <FormRow
+        label={dict.formBackchannelLogout}
+        hint={dict.formBackchannelLogoutHint}
+      >
+        <Input
+          type="url"
+          value={backchannelLogoutUri}
+          onChange={(e) => setBackchannelLogoutUri(e.target.value)}
           placeholder="https://"
           className="h-9"
         />

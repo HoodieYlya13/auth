@@ -165,6 +165,8 @@
     "formPostLogout": "Post-logout redirect URIs",
     "formHomeUrl": "App home URL",
     "formHomeUrlHint": "Optional. Linked as “Back to app” when users open their account from this app (?client_id=…). Must share an origin with a redirect URI.",
+    "formBackchannelLogout": "Back-channel logout URI",
+    "formBackchannelLogoutHint": "Optional. When a sign-in that gave this app tokens ends, a logout token is POSTed here so the app ends its session at once (OIDC Back-Channel Logout). Must be reachable from this server.",
     "formRoles": "Roles",
     "formRolesHint": "Comma-separated role names for this app.",
     "formDefaultRoles": "Default roles",

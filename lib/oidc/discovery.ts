@@ -28,6 +28,8 @@ export function getDiscoveryDocument() {
     userinfo_endpoint: endpoints.userinfo,
     jwks_uri: endpoints.jwks,
     end_session_endpoint: endpoints.endSession,
+    backchannel_logout_supported: true,
+    backchannel_logout_session_supported: true,
     response_types_supported: ["code"],
     response_modes_supported: ["query"],
     grant_types_supported: ["authorization_code", "refresh_token"],

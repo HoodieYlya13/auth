@@ -41,7 +41,12 @@ async function buildTokenResponse(
   user: User,
   client: Client,
   scope: string,
-  opts: { nonce?: string; authTime?: number; refreshToken?: string },
+  opts: {
+    nonce?: string;
+    authTime?: number;
+    sessionId?: string | null;
+    refreshToken?: string;
+  },
 ) {
   const [roles, hasPasskey] = await Promise.all([
     resolveRoles(user, client.id),
@@ -56,6 +61,7 @@ async function buildTokenResponse(
       hasPasskey,
       nonce: opts.nonce,
       authTime: opts.authTime,
+      sessionId: opts.sessionId,
     }),
   ]);
 
@@ -138,6 +144,7 @@ async function exchange(
     return buildTokenResponse(user, client, authCode.scope, {
       nonce: authCode.nonce,
       authTime: authCode.authTime,
+      sessionId: authCode.sessionId,
       refreshToken,
     });
   }
@@ -157,6 +164,7 @@ async function exchange(
     if (!user) return tokenError("invalid_grant");
 
     return buildTokenResponse(user, client, result.scope, {
+      sessionId: result.sessionId,
       refreshToken: result.token,
     });
   }

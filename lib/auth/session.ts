@@ -2,6 +2,10 @@ import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { forgetPasskeyReminder } from "@/lib/auth/passkey-prompt";
+import {
+  backChannelClientsOf,
+  notifyEndedSession,
+} from "@/lib/oidc/backchannel-logout";
 import type { User } from "@/lib/generated/prisma/client";
 
 const COOKIE = "auth_session";
@@ -56,10 +60,16 @@ export async function getCurrentUser(): Promise<User | null> {
 
 /**
  * Signs out of one sign-in, and out of every app it signed into: their refresh
- * tokens are revoked, so each app is signed out at its next refresh. A session
- * that merely expires is deleted without this, and apps keep their sign-in.
+ * tokens are revoked, so each app is signed out at its next refresh, and apps
+ * with a back-channel logout URI are told at once. A session that merely
+ * expires is deleted without this, and apps keep their sign-in.
  */
 async function endSession(id: string, userId?: string): Promise<void> {
+  const ending = await prisma.session.findFirst({
+    where: { id, ...(userId ? { userId } : {}) },
+    select: { userId: true },
+  });
+  const listeningApps = ending ? await backChannelClientsOf(id) : [];
   await prisma.$transaction([
     prisma.refreshToken.updateMany({
       where: { sessionId: id, ...(userId ? { userId } : {}) },
@@ -67,6 +77,9 @@ async function endSession(id: string, userId?: string): Promise<void> {
     }),
     prisma.session.deleteMany({ where: { id, ...(userId ? { userId } : {}) } }),
   ]);
+  if (ending) {
+    await notifyEndedSession(listeningApps, { userId: ending.userId, sessionId: id });
+  }
 }
 
 export async function destroySession(): Promise<void> {

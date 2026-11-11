@@ -71,6 +71,8 @@ model Client {
   logoUrl                String?
   // Where the account page's "Back to app" link points (?client_id=...). Must share an origin with a redirect URI.
   homeUrl                String?
+  // OIDC Back-Channel Logout: where a logout token is POSTed when a sign-in that issued this app tokens ends.
+  backchannelLogoutUri   String?
   roles                  String[] @default(["USER", "ADMIN"]) // valid role names for this app
   defaultRoles           String[] @default(["USER"]) // roles auto-assigned to a new member on link
   allowedScopes          String[] @default(["openid", "profile", "email", "offline_access"])

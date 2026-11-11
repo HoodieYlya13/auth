@@ -30,7 +30,14 @@ export async function issueRefreshToken(opts: {
 }
 
 export type RotateResult =
-  | { ok: true; userId: string; clientDbId: string; scope: string; token: string }
+  | {
+      ok: true;
+      userId: string;
+      clientDbId: string;
+      scope: string;
+      token: string;
+      sessionId: string | null;
+    }
   | { ok: false };
 
 export async function rotateRefreshToken(
@@ -46,6 +53,7 @@ export async function rotateRefreshToken(
     userId: record.userId,
     clientDbId: record.clientId,
     scope: record.scope,
+    sessionId: record.sessionId,
     token: await issueRefreshToken({
       userId: record.userId,
       clientDbId: record.clientId,
