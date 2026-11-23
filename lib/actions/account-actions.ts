@@ -7,7 +7,7 @@ import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { tryCatch } from "@/lib/utils";
 import { safeReturnTo } from "@/lib/redirect";
-import { markPasskeyReminder, passkeyPromptPath } from "@/lib/auth/passkey-prompt";
+import { passkeyPromptPath } from "@/lib/auth/passkey-prompt";
 import {
   USERNAME_CHARACTERS,
   USERNAME_MAX_LENGTH,
@@ -211,10 +211,6 @@ export async function removeAvatar(): Promise<ActionResult> {
  * The passkey page was shown: that's today's reminder, wherever it came from
  * (an app links straight to it, without the redirect that marks the day).
  */
-export async function markPasskeyPromptShown(): Promise<void> {
-  await markPasskeyReminder();
-}
-
 export interface PasskeyRegisterBegin {
   success: boolean;
   options?: Awaited<ReturnType<typeof startPasskeyRegistration>>;

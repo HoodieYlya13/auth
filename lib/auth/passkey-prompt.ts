@@ -1,15 +1,16 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import {
+  REMINDER_COOKIE,
+  reminderCookieOptions,
+} from "@/lib/auth/passkey-reminder-cookie";
 
 /**
  * New accounts, and anyone signed in without a passkey (at most once a day:
  * on sign-in, on any page, or on the way into an app), are offered to add one
  * before going on to where they were headed.
  */
-
-const REMINDER_COOKIE = "passkey_reminder";
-const REMINDER_MAX_AGE = 24 * 60 * 60;
 
 export async function hasPasskey(userId: string): Promise<boolean> {
   return (await prisma.credential.count({ where: { userId } })) > 0;
@@ -44,11 +45,5 @@ export async function forgetPasskeyReminder(): Promise<void> {
 
 /** Starts the day without another prompt. */
 export async function markPasskeyReminder(): Promise<void> {
-  (await cookies()).set(REMINDER_COOKIE, "1", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: REMINDER_MAX_AGE,
-  });
+  (await cookies()).set(REMINDER_COOKIE, "1", reminderCookieOptions);
 }

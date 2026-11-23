@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { safeReturnTo } from "@/lib/redirect";
+import {
+  REMINDER_COOKIE,
+  reminderCookieOptions,
+} from "@/lib/auth/passkey-reminder-cookie";
 
 const LOCALES = ["en", "fr"];
 const DEFAULT_LOCALE = "en";
@@ -13,10 +17,9 @@ const PROTECTED = [
 ];
 
 const SESSION_COOKIE = "auth_session";
-// Set by lib/auth/passkey-prompt.ts once the daily passkey check is done.
-const REMINDER_COOKIE = "passkey_reminder";
 // Pages that offer a passkey themselves, or come before it.
-const NO_REMINDER = ["/auth/passkey", "/auth/complete-registration"];
+const PASSKEY_PROMPT = "/auth/passkey";
+const NO_REMINDER = [PASSKEY_PROMPT, "/auth/complete-registration"];
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
@@ -70,7 +73,15 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (isPageLoad && rest === PASSKEY_PROMPT) return passkeyPromptSeen();
   return NextResponse.next();
+}
+
+// Marked here rather than from the page: a cookie set by a server action re-renders it, losing return_to on iOS.
+function passkeyPromptSeen(): NextResponse {
+  const response = NextResponse.next();
+  response.cookies.set(REMINDER_COOKIE, "1", reminderCookieOptions);
+  return response;
 }
 
 export const config = {

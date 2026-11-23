@@ -13,6 +13,7 @@ import { findAppLink, needsConfirmation } from "@/lib/oidc/app-link";
 import { withoutPrompt } from "@/lib/oidc/prompt";
 import { ConsentForm } from "@/components/auth/consent-form";
 import { Suspense } from "react";
+import { safeReturnTo } from "@/lib/redirect";
 
 function ConsentSkeleton() {
   return (
@@ -37,6 +38,11 @@ function ConsentSkeleton() {
   );
 }
 
+function signInPath(lang: string, returnTo?: string): string {
+  const safe = safeReturnTo(returnTo);
+  return safe ? `/${lang}?return_to=${encodeURIComponent(safe)}` : `/${lang}`;
+}
+
 async function ConsentSection({
   lang,
   searchParams,
@@ -46,12 +52,12 @@ async function ConsentSection({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
   dict: Awaited<ReturnType<typeof getDictionary>>;
 }) {
-  const session = await getSession();
-  if (!session) redirect(`/${lang}`);
-  const { user } = session;
-
   const { return_to } = await searchParams;
   const returnTo = typeof return_to === "string" ? return_to : undefined;
+
+  const session = await getSession();
+  if (!session) redirect(signInPath(lang, returnTo));
+  const { user } = session;
   const parsed = returnTo ? parseAuthorizeReturnTo(returnTo) : null;
   if (!parsed) redirect(`/${lang}/account`);
 
