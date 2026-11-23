@@ -86,33 +86,61 @@ export async function peekMagicLinkToken(
   return getRedis().get<MagicLinkPayload>(`${PREFIX}${token}`);
 }
 
+/** Without a link, the email has only the code (for an app's sign-in). */
 export async function sendMagicLinkEmail(
   email: string,
-  link: string,
   code: string,
+  link?: string,
 ): Promise<void> {
   if (process.env.NODE_ENV !== "production")
-    return console.log(`🔗 Magic Link: ${link}\n🔢 Code: ${code}`);
+    return console.log(`🔗 Magic Link: ${link ?? "(code only)"}\n🔢 Code: ${code}`);
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const { error } = await resend.emails.send({
     from: process.env.EMAIL_FROM_MAGIC_LINK ?? "Auth <onboarding@resend.dev>",
     to: email,
-    subject: "Your sign-in link",
-    text: `Click to sign in (valid for 15 minutes):\n\n${link}\n\nOr enter this code on the sign-in page: ${code}\n\nIf you didn't request this, you can ignore this email.`,
-    html: magicLinkHtml(link, code),
+    subject: link ? "Your sign-in link" : `Your sign-in code: ${code}`,
+    text: link ? magicLinkText(link, code) : magicCodeText(code),
+    html: link ? magicLinkHtml(link, code) : magicCodeHtml(code),
   });
   if (error) throw new Error(`Failed to send magic link: ${error.message}`);
 }
 
+const IGNORE_NOTE = "If you didn't request this, you can ignore this email.";
+
+function magicLinkText(link: string, code: string): string {
+  return `Click to sign in (valid for 15 minutes):\n\n${link}\n\nOr enter this code on the sign-in page: ${code}\n\n${IGNORE_NOTE}`;
+}
+
+function magicCodeText(code: string): string {
+  return `Enter this code on the sign-in page (valid for 15 minutes):\n\n${code}\n\n${IGNORE_NOTE}`;
+}
+
+const EMAIL_STYLE =
+  "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#0a0a0a";
+
+function codeHtml(code: string): string {
+  return `<p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:8px;margin:0">${code}</p>`;
+}
+
 function magicLinkHtml(link: string, code: string): string {
   return `
-  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#0a0a0a">
+  <div style="${EMAIL_STYLE}">
     <h1 style="font-size:18px;margin:0 0 8px">Sign in</h1>
     <p style="font-size:14px;color:#525252;margin:0 0 24px">Click the button below to sign in. This link is valid for 15 minutes and can be used once.</p>
     <a href="${link}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:8px">Sign in</a>
     <p style="font-size:14px;color:#525252;margin:28px 0 8px">Or enter this code on the sign-in page:</p>
-    <p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:8px;margin:0">${code}</p>
+    ${codeHtml(code)}
     <p style="font-size:12px;color:#a3a3a3;margin:24px 0 0;word-break:break-all">${link}</p>
+  </div>`;
+}
+
+function magicCodeHtml(code: string): string {
+  return `
+  <div style="${EMAIL_STYLE}">
+    <h1 style="font-size:18px;margin:0 0 8px">Sign in</h1>
+    <p style="font-size:14px;color:#525252;margin:0 0 24px">Enter this code on the sign-in page. It is valid for 15 minutes and can be used once.</p>
+    ${codeHtml(code)}
+    <p style="font-size:12px;color:#a3a3a3;margin:24px 0 0">${IGNORE_NOTE}</p>
   </div>`;
 }

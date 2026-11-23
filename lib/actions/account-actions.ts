@@ -9,6 +9,11 @@ import { tryCatch } from "@/lib/utils";
 import { safeReturnTo } from "@/lib/redirect";
 import { markPasskeyReminder, passkeyPromptPath } from "@/lib/auth/passkey-prompt";
 import {
+  USERNAME_CHARACTERS,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+} from "@/lib/username";
+import {
   destroySession,
   getCurrentUser,
   getSession,
@@ -27,13 +32,22 @@ import {
 
 const DEFAULT_LOCALE = "en";
 
+const usernameSchema = z
+  .string()
+  .trim()
+  .normalize("NFC")
+  .min(
+    USERNAME_MIN_LENGTH,
+    `Username must be at least ${USERNAME_MIN_LENGTH} characters.`,
+  )
+  .max(
+    USERNAME_MAX_LENGTH,
+    `Username must be at most ${USERNAME_MAX_LENGTH} characters.`,
+  )
+  .regex(USERNAME_CHARACTERS, "Use only letters, numbers, and underscores.");
+
 const profileSchema = z.object({
-  username: z
-    .string()
-    .trim()
-    .min(3, "Username must be at least 3 characters.")
-    .max(30, "Username must be at most 30 characters.")
-    .regex(/^[a-zA-Z0-9_]+$/, "Use only letters, numbers, and underscores."),
+  username: usernameSchema,
   firstName: z.string().trim().max(50).optional(),
   lastName: z.string().trim().max(50).optional(),
   birthday: z.string().trim().optional(),
@@ -67,50 +81,10 @@ export async function completeRegistration(
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "You are not signed in." };
 
-  const parsed = profileSchema.safeParse(input);
-  if (!parsed.success)
-    return { success: false, error: parsed.error.issues[0]?.message };
+  const saved = await saveProfile(user.id, input);
+  if (!saved.success) return saved;
 
-  const birthday = parseBirthday(parsed.data.birthday);
-  if (birthday === "invalid")
-    return { success: false, error: "Please enter a valid birthday." };
-
-  const username = parsed.data.username;
-  const taken = await prisma.user.findFirst({
-    where: {
-      username: {
-        equals: username,
-        mode: "insensitive",
-      },
-      NOT: { id: user.id },
-    },
-    select: { id: true },
-  });
-  if (taken)
-    return { success: false, error: "That username is already taken." };
-
-  const [error] = await tryCatch(
-    prisma.user.update({
-      where: { id: user.id },
-      data: {
-        username,
-        firstName: parsed.data.firstName || null,
-        lastName: parsed.data.lastName || null,
-        birthday,
-      },
-    }),
-  );
-  if (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    )
-      return { success: false, error: "That username is already taken." };
-    throw error;
-  }
-
-  // A new account: offer a passkey before going on.
-  await markPasskeyReminder();
+  // No cookie set here: it would re-render the registration page, which then leaves for the account page.
   return {
     success: true,
     redirectTo: passkeyPromptPath(locale, safeReturnTo(returnTo)),
@@ -127,7 +101,13 @@ export async function updateProfile(
 ): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "You are not signed in." };
+  return saveProfile(user.id, input);
+}
 
+async function saveProfile(
+  userId: string,
+  input: RegistrationInput,
+): Promise<ActionResult> {
   const parsed = profileSchema.safeParse(input);
   if (!parsed.success)
     return { success: false, error: parsed.error.issues[0]?.message };
@@ -137,22 +117,12 @@ export async function updateProfile(
     return { success: false, error: "Please enter a valid birthday." };
 
   const username = parsed.data.username;
-  const taken = await prisma.user.findFirst({
-    where: {
-      username: {
-        equals: username,
-        mode: "insensitive",
-      },
-      NOT: { id: user.id },
-    },
-    select: { id: true },
-  });
-  if (taken)
+  if (await isUsernameTaken(username, userId))
     return { success: false, error: "That username is already taken." };
 
   const [error] = await tryCatch(
     prisma.user.update({
-      where: { id: user.id },
+      where: { id: userId },
       data: {
         username,
         firstName: parsed.data.firstName || null,
@@ -169,8 +139,21 @@ export async function updateProfile(
       return { success: false, error: "That username is already taken." };
     throw error;
   }
-
   return { success: true };
+}
+
+async function isUsernameTaken(
+  username: string,
+  exceptUserId: string,
+): Promise<boolean> {
+  const taken = await prisma.user.findFirst({
+    where: {
+      username: { equals: username, mode: "insensitive" },
+      NOT: { id: exceptUserId },
+    },
+    select: { id: true },
+  });
+  return taken !== null;
 }
 
 export interface AvatarResult extends ActionResult {

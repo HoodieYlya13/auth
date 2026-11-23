@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { updateProfile } from "@/lib/actions/account-actions";
+import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH } from "@/lib/username";
 import { Section } from "@/components/account/section";
 import { AvatarPicker } from "@/components/account/avatar-picker";
 import type { AccountDict } from "@/components/account/account-dict";
@@ -69,8 +70,8 @@ export function ProfileSection({
             value={values.username}
             onChange={(e) => set("username")(e.target.value)}
             className="h-9 bg-background/50"
-            minLength={3}
-            maxLength={30}
+            minLength={USERNAME_MIN_LENGTH}
+            maxLength={USERNAME_MAX_LENGTH}
             required
           />
         </Labelled>

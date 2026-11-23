@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { createSession } from "@/lib/auth/session";
 import type { MagicLinkPayload } from "@/lib/auth/magic-link";
 import { hasLocale } from "@/lib/dictionaries/dictionaries";
-import { safeReturnTo } from "@/lib/redirect";
+import { completeRegistrationPath, safeReturnTo } from "@/lib/redirect";
 import { passkeyPromptDue, passkeyPromptPath } from "@/lib/auth/passkey-prompt";
 
 const DEFAULT_LOCALE = "en";
@@ -28,9 +28,7 @@ export async function finishMagicSignIn(
   const returnTo = safeReturnTo(payload.returnTo);
 
   if (!user.username) {
-    return returnTo
-      ? `/${locale}/auth/complete-registration?return_to=${encodeURIComponent(returnTo)}`
-      : `/${locale}/auth/complete-registration`;
+    return completeRegistrationPath(locale, returnTo);
   }
 
   // Signed in by email again: offer a passkey instead, once a day.

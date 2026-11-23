@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { completeRegistration } from "@/lib/actions/account-actions";
+import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH } from "@/lib/username";
 
 interface RegisterDict {
   usernameLabel: string;
@@ -77,8 +78,8 @@ export function CompleteRegistrationForm({
           className="w-full h-9 bg-background/50 border-input"
           disabled={isSubmitting}
           required
-          minLength={3}
-          maxLength={30}
+          minLength={USERNAME_MIN_LENGTH}
+          maxLength={USERNAME_MAX_LENGTH}
         />
         <p className="text-[11px] text-muted-foreground px-0.5">
           {dict.usernameHint}

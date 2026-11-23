@@ -25,3 +25,16 @@ export function safeReturnTo(
   // "/.//evil.com" normalizes to "//evil.com": still another site once in a Location header.
   return path.startsWith("//") ? undefined : path;
 }
+
+export function completeRegistrationPath(
+  locale: string,
+  returnTo?: string,
+): string {
+  const path = `/${locale}/auth/complete-registration`;
+  return returnTo ? `${path}?return_to=${encodeURIComponent(returnTo)}` : path;
+}
+
+/** Signing in on the way into an app: its email has only the code, since an installed app never receives links. */
+export function isAppSignIn(returnTo: string | null | undefined): boolean {
+  return safeReturnTo(returnTo)?.startsWith("/api/oidc/authorize?") ?? false;
+}

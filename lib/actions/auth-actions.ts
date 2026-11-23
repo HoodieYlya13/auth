@@ -14,7 +14,11 @@ import {
 } from "@/lib/ratelimit";
 import { isCaptchaEnabled, verifyTurnstileToken } from "@/lib/turnstile";
 import { tryCatch } from "@/lib/utils";
-import { safeReturnTo } from "@/lib/redirect";
+import {
+  completeRegistrationPath,
+  isAppSignIn,
+  safeReturnTo,
+} from "@/lib/redirect";
 import { prisma } from "@/lib/db";
 import { createSession } from "@/lib/auth/session";
 import {
@@ -118,8 +122,9 @@ export async function authenticateMagicLink(
     returnTo: safeReturnTo(data.returnTo),
   });
   const link = `${ISSUER}/auth/verify?token=${encodeURIComponent(token)}`;
+  const emailedLink = isAppSignIn(data.returnTo) ? undefined : link;
 
-  const [sendError] = await tryCatch(sendMagicLinkEmail(email, link, code));
+  const [sendError] = await tryCatch(sendMagicLinkEmail(email, code, emailedLink));
   if (sendError) {
     console.error("Magic link send failed:", sendError);
     return { success: false, error: "Could not send the email. Try again." };
@@ -204,9 +209,7 @@ export async function finishPasskeyAuthenticationAction(
   const safe = safeReturnTo(returnTo);
   let redirectTo: string;
   if (!user.username)
-    redirectTo = safe
-      ? `/${locale}/auth/complete-registration?return_to=${encodeURIComponent(safe)}`
-      : `/${locale}/auth/complete-registration`;
+    redirectTo = completeRegistrationPath(locale, safe);
   else redirectTo = safe ?? `/${locale}/account`;
 
   return { success: true, redirectTo };

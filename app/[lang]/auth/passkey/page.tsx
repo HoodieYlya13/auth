@@ -4,7 +4,7 @@ import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasPasskey } from "@/lib/auth/passkey-prompt";
 import { PasskeyPrompt } from "@/components/auth/passkey-prompt";
-import { safeReturnTo } from "@/lib/redirect";
+import { completeRegistrationPath, safeReturnTo } from "@/lib/redirect";
 import { findReturnApp } from "@/lib/oidc/clients";
 import { Suspense } from "react";
 
@@ -46,7 +46,7 @@ async function PromptSection({
     app && (appPath ? new URL(appPath, app.homeUrl).href : app.homeUrl);
   const next = appHref ?? returnTo ?? `/${lang}/account`;
 
-  if (!user.username) redirect(`/${lang}/auth/complete-registration`);
+  if (!user.username) redirect(completeRegistrationPath(lang, returnTo));
   // Added one meanwhile (another tab, the Back button): nothing to offer.
   if (await hasPasskey(user.id)) redirect(next);
 

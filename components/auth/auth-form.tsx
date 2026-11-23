@@ -16,6 +16,7 @@ import { ArrowLeft, Fingerprint, KeyRound, Mail, Loader2 } from "lucide-react";
 
 import { useSearchParams } from "next/navigation";
 import { tryCatch } from "@/lib/utils";
+import { isAppSignIn } from "@/lib/redirect";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -42,12 +43,27 @@ interface AuthFormProps {
     codeSubmit: string;
     codeInvalid: string;
     codeOtherEmail: string;
+    sendCode: string;
+    sendCodeDescription: string;
+    codeOnlyDescription: string;
+    toastSuccessCode: string;
   };
 }
 
-export function AuthForm({ locale, dict }: AuthFormProps) {
+function codeOnlyWording(dict: AuthFormProps["dict"]): AuthFormProps["dict"] {
+  return {
+    ...dict,
+    sendMagicLink: dict.sendCode,
+    magicLinkDescription: dict.sendCodeDescription,
+    codeDescription: dict.codeOnlyDescription,
+    toastSuccessMagicLink: dict.toastSuccessCode,
+  };
+}
+
+export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("return_to") ?? undefined;
+  const dict = isAppSignIn(returnTo) ? codeOnlyWording(fullDict) : fullDict;
   const [email, setEmail] = useState("");
   const [showCaptcha, setShowCaptcha] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
