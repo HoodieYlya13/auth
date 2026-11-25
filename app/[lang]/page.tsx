@@ -4,18 +4,17 @@ import { AuthForm } from "@/components/auth/auth-form";
 import { Lock } from "lucide-react";
 import { Suspense } from "react";
 
+/** The sign-in form's shape (email label and field, then the code button and its line), so nothing moves when it loads. */
 function AuthFormSkeleton() {
   return (
-    <div className="space-y-5 animate-pulse">
-      <div className="space-y-2">
+    <div className="flex flex-col gap-5 animate-pulse">
+      <div className="flex flex-col gap-2">
+        <div className="h-4 bg-muted rounded w-1/3" />
         <div className="h-9 bg-muted rounded-lg w-full" />
-        <div className="h-3 bg-muted rounded w-3/4" />
       </div>
-      <div className="h-4 bg-muted rounded w-1/4 mx-auto" />
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         <div className="h-9 bg-muted rounded-lg w-full" />
-        <div className="h-9 bg-muted rounded-lg w-full" />
-        <div className="h-3 bg-muted rounded w-3/4" />
+        <div className="h-4 bg-muted rounded w-3/4" />
       </div>
     </div>
   );
