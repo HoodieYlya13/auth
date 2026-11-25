@@ -26,6 +26,7 @@ import {
 import type { AccountDict } from "@/components/account/account-dict";
 import { LocalDate } from "@/components/local-date";
 import { tryCatch } from "@/lib/utils";
+import { rememberPasskeyOnDevice } from "@/lib/auth/passkey-on-device";
 
 interface Passkey {
   id: string;
@@ -115,6 +116,7 @@ export function PasskeysSection({
       toast.error(result?.error || dict.passkeyError);
       return;
     }
+    rememberPasskeyOnDevice(nameDialog.response.authenticatorAttachment);
     toast.success(dict.passkeyAdded);
     setNameDialog(null);
     router.refresh();

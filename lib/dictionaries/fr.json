@@ -27,6 +27,11 @@
   "sendCodeDescription": "Nous vous enverrons un code à 6 chiffres par e-mail pour vous connecter.",
   "codeOnlyDescription": "Nous avons envoyé un code à 6 chiffres à {email}. Saisissez-le ici.",
   "toastSuccessCode": "Code envoyé !",
+  "passkeyEmailTitle": "Retrouver votre passkey",
+  "passkeyEmailDescription": "Saisissez votre e-mail. Si votre compte a une passkey, cet appareil l'utilise (passkeys synchronisées comprises), ou propose d'utiliser votre téléphone.",
+  "passkeyEmailSubmit": "Continuer avec Passkey",
+  "passkeyEmailBack": "Retour",
+  "noPasskeyForEmail": "Ce compte n'a pas encore de passkey : nous vous envoyons un code par e-mail.",
   "register": {
     "title": "Complétez votre profil",
     "description": "Choisissez un nom d'utilisateur pour finaliser votre compte. Votre nom et votre date de naissance sont facultatifs.",

@@ -27,6 +27,11 @@
   "sendCodeDescription": "We will email you a 6-digit code to sign in.",
   "codeOnlyDescription": "We sent a 6-digit code to {email}. Enter it here.",
   "toastSuccessCode": "Code sent!",
+  "passkeyEmailTitle": "Find your passkey",
+  "passkeyEmailDescription": "Enter your email. If your account has a passkey, this device uses it (synced passkeys included), or offers to use your phone.",
+  "passkeyEmailSubmit": "Continue with Passkey",
+  "passkeyEmailBack": "Back",
+  "noPasskeyForEmail": "This account has no passkey yet: we're emailing you a code instead.",
   "register": {
     "title": "Complete your profile",
     "description": "Pick a username to finish setting up your account. Your name and birthday are optional.",

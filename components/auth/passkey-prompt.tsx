@@ -10,6 +10,7 @@ import {
   finishPasskeyRegistrationAction,
 } from "@/lib/actions/account-actions";
 import { tryCatch } from "@/lib/utils";
+import { rememberPasskeyOnDevice } from "@/lib/auth/passkey-on-device";
 
 interface PasskeyPromptDict {
   add: string;
@@ -67,6 +68,7 @@ export function PasskeyPrompt({
       toast.error(dict.error);
       return;
     }
+    rememberPasskeyOnDevice(response.authenticatorAttachment);
     toast.success(dict.added);
     goOn();
   };

@@ -28,6 +28,7 @@ import {
 } from "@/lib/auth/magic-link";
 import { finishMagicSignIn } from "@/lib/auth/magic-sign-in";
 import {
+  findPasskeysByEmail,
   finishPasskeyAuthentication,
   startPasskeyAuthentication,
 } from "@/lib/auth/webauthn";
@@ -172,8 +173,45 @@ export interface PasskeyBeginResult {
 export async function beginPasskeyAuthentication(): Promise<PasskeyBeginResult> {
   const rateLimitResult = await enforceRateLimit();
   if (rateLimitResult) return { success: false, error: rateLimitResult.error };
+  return startPasskeyFlow();
+}
 
-  const [error, result] = await tryCatch(startPasskeyAuthentication());
+/**
+ * For passkey suggestions in the email field's autofill, prepared on every
+ * visit of the sign-in page: its own, looser limit, so it never uses up the
+ * sign-in attempts.
+ */
+export async function beginPasskeyAutofill(): Promise<PasskeyBeginResult> {
+  const rateLimitResult = await enforceRateLimit(() => checkRateLimit("passkey-autofill"));
+  if (rateLimitResult) return { success: false, error: rateLimitResult.error };
+  return startPasskeyFlow();
+}
+
+export interface PasskeyForEmailResult extends PasskeyBeginResult {
+  /** The account has no passkey (or there's no account): sign in by email instead. */
+  hasPasskey?: boolean;
+}
+
+/**
+ * Passkey sign-in on a browser that hasn't used one here before: the account's
+ * own passkeys, so a device holding one uses it at once and only a device
+ * without any offers another device. No passkey: the caller signs in by email.
+ */
+export async function beginPasskeyAuthenticationForEmail(email: string): Promise<PasskeyForEmailResult> {
+  const rateLimitResult = await enforceRateLimit();
+  if (rateLimitResult) return { success: false, error: rateLimitResult.error };
+
+  const parsedEmail = z.email().max(254).safeParse(email?.trim().toLowerCase());
+  if (!parsedEmail.success)
+    return { success: false, error: "Please enter a valid email address." };
+
+  const passkeys = await findPasskeysByEmail(parsedEmail.data);
+  if (passkeys.length === 0) return { success: true, hasPasskey: false };
+  return { ...(await startPasskeyFlow(passkeys)), hasPasskey: true };
+}
+
+async function startPasskeyFlow(passkeys?: Awaited<ReturnType<typeof findPasskeysByEmail>>): Promise<PasskeyBeginResult> {
+  const [error, result] = await tryCatch(startPasskeyAuthentication(passkeys));
   if (error || !result) {
     console.error("Passkey begin failed:", error);
     return { success: false, error: "Could not start passkey sign-in." };

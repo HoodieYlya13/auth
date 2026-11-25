@@ -91,13 +91,33 @@ export async function finishPasskeyRegistration(
   });
 }
 
-export async function startPasskeyAuthentication(): Promise<{
+type StoredPasskey = { credentialId: string; transports: string[] };
+
+/** The passkeys of the account with this email (none for an unknown email). */
+export async function findPasskeysByEmail(email: string): Promise<StoredPasskey[]> {
+  return prisma.credential.findMany({
+    where: { user: { email } },
+    select: { credentialId: true, transports: true },
+  });
+}
+
+/**
+ * A sign-in challenge. Without `passkeys`, any passkey for this site will do
+ * (the browser picks, or offers another device). With them, only those: a
+ * device holding one (synced ones included) uses it at once, and only a
+ * device without any offers another device.
+ */
+export async function startPasskeyAuthentication(passkeys?: StoredPasskey[]): Promise<{
   options: PublicKeyCredentialRequestOptionsJSON;
   flowId: string;
 }> {
   const options = await generateAuthenticationOptions({
     rpID: RP_ID,
     userVerification: "preferred",
+    allowCredentials: passkeys?.map((passkey) => ({
+      id: passkey.credentialId,
+      transports: passkey.transports as AuthenticatorTransportFuture[],
+    })),
   });
   const flowId = crypto.randomUUID();
   await getRedis().set(authKey(flowId), options.challenge, {

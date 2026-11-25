@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Turnstile } from "@/components/auth/turnstile";
 import { toast } from "sonner";
-import { startAuthentication } from "@simplewebauthn/browser";
 import {
   authenticateMagicLink,
   beginPasskeyAuthentication,
-  finishPasskeyAuthenticationAction,
   verifyMagicCode,
 } from "@/lib/actions/auth-actions";
+import { PasskeyEmailStep } from "@/components/auth/passkey-email-step";
+import { usePasskeyAutofill, usePasskeySignIn } from "@/components/auth/use-passkey-sign-in";
+import { forgetPasskeyOnDevice, hasPasskeyOnDevice } from "@/lib/auth/passkey-on-device";
 import { ArrowLeft, Fingerprint, KeyRound, Mail, Loader2 } from "lucide-react";
 
 import { useSearchParams } from "next/navigation";
@@ -47,6 +48,11 @@ interface AuthFormProps {
     sendCodeDescription: string;
     codeOnlyDescription: string;
     toastSuccessCode: string;
+    passkeyEmailTitle: string;
+    passkeyEmailDescription: string;
+    passkeyEmailSubmit: string;
+    passkeyEmailBack: string;
+    noPasskeyForEmail: string;
   };
 }
 
@@ -104,42 +110,24 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
     return true;
   };
 
+  const signInWithPasskey = usePasskeySignIn({ locale, returnTo }, dict);
+  usePasskeyAutofill({ locale, returnTo });
+  // A browser that hasn't used a passkey here: the email first (see PasskeyEmailStep).
+  const [isPasskeyEmailStep, setIsPasskeyEmailStep] = useState(false);
+
   const handlePasskey = async () => {
+    if (!hasPasskeyOnDevice()) return setIsPasskeyEmailStep(true);
     setIsSubmitting(true);
     setActiveAction("passkey");
-
-    const toastId = toast.loading(dict.toastInitiatingPasskey);
-    const [error, outcome] = await tryCatch(async () => {
-      const begin = await beginPasskeyAuthentication();
-      if (!begin.success || !begin.options || !begin.flowId)
-        return { ok: false as const, message: begin.error };
-
-      const assertion = await startAuthentication({
-        optionsJSON: begin.options,
-      });
-      const result = await finishPasskeyAuthenticationAction(
-        begin.flowId,
-        assertion,
-        locale,
-        returnTo,
-      );
-      if (result.success && result.redirectTo)
-        return { ok: true as const, redirectTo: result.redirectTo };
-      return { ok: false as const, message: result.error };
-    });
+    const outcome = await signInWithPasskey(beginPasskeyAuthentication);
+    if (outcome === "signed-in") return;
     setIsSubmitting(false);
     setActiveAction(null);
-
-    if (error || !outcome) {
-      toast.error(dict.toastErrorPasskey, { id: toastId });
-      return;
+    // Its passkey may not be here any more: the email first next time, and now.
+    if (outcome === "cancelled") {
+      forgetPasskeyOnDevice();
+      setIsPasskeyEmailStep(true);
     }
-    if (outcome.ok) {
-      toast.success(dict.toastSuccessPasskey, { id: toastId });
-      window.location.href = outcome.redirectTo;
-      return;
-    }
-    toast.error(outcome.message || dict.toastErrorPasskey, { id: toastId });
   };
 
   const handleMagicLink = async (email: string) => {
@@ -178,6 +166,21 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
 
   if (sentTo)
     return <CodeSection email={sentTo} onBack={() => setSentTo(null)} dict={dict} />;
+
+  if (isPasskeyEmailStep)
+    return (
+      <PasskeyEmailStep
+        initialEmail={email}
+        signIn={signInWithPasskey}
+        onNoPasskey={(passkeyEmail) => {
+          setIsPasskeyEmailStep(false);
+          setEmail(passkeyEmail);
+          void handleMagicLink(passkeyEmail);
+        }}
+        onBack={() => setIsPasskeyEmailStep(false)}
+        dict={dict}
+      />
+    );
 
   return (
     <div className="flex flex-col gap-5">
@@ -330,7 +333,8 @@ function MagicLinkSection({
           spellCheck={false}
           name="email"
           type="email"
-          autoComplete="email"
+          // "webauthn": this device's passkeys show up in the autofill (see usePasskeyAutofill).
+          autoComplete="email webauthn"
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
