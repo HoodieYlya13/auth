@@ -137,6 +137,14 @@
   body::-webkit-scrollbar {
     display: none;  /* Chrome, Safari, and Opera */
   }
+  /* iOS Safari draws date fields natively: wider than their box and ignoring its height. */
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
   html {
     @apply font-sans;
     -ms-overflow-style: none;  /* IE and Edge */
