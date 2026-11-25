@@ -269,6 +269,8 @@ function MagicLinkSection({
           type="email"
           // "webauthn": this device's passkeys show up in the autofill (see usePasskeyAutofill).
           autoComplete="email webauthn"
+          // Focused at once: some desktop browsers then show the passkey suggestion without a click.
+          autoFocus
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
