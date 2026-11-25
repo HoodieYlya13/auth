@@ -12,7 +12,6 @@ import {
   finishPasskeyAuthenticationAction,
   type PasskeyBeginResult,
 } from "@/lib/actions/auth-actions";
-import { rememberPasskeyOnDevice } from "@/lib/auth/passkey-on-device";
 import { tryCatch } from "@/lib/utils";
 
 export type PasskeySignInOutcome = "signed-in" | "cancelled" | "failed";
@@ -28,7 +27,7 @@ interface Destination {
   returnTo?: string;
 }
 
-/** Checks the passkey's answer, remembers a passkey found on this device, and goes on to where the sign-in leads. */
+/** Checks the passkey's answer and goes on to where the sign-in leads. */
 async function finishSignIn(
   flowId: string,
   assertion: AuthenticationResponseJSON,
@@ -36,7 +35,6 @@ async function finishSignIn(
 ): Promise<{ redirectTo: string } | { error?: string }> {
   const result = await finishPasskeyAuthenticationAction(flowId, assertion, locale, returnTo);
   if (!result.success || !result.redirectTo) return { error: result.error };
-  rememberPasskeyOnDevice(assertion.authenticatorAttachment);
   return { redirectTo: result.redirectTo };
 }
 

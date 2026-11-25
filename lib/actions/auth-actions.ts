@@ -170,12 +170,6 @@ export interface PasskeyBeginResult {
   error?: string;
 }
 
-export async function beginPasskeyAuthentication(): Promise<PasskeyBeginResult> {
-  const rateLimitResult = await enforceRateLimit();
-  if (rateLimitResult) return { success: false, error: rateLimitResult.error };
-  return startPasskeyFlow();
-}
-
 /**
  * For passkey suggestions in the email field's autofill, prepared on every
  * visit of the sign-in page: its own, looser limit, so it never uses up the
@@ -193,9 +187,9 @@ export interface PasskeyForEmailResult extends PasskeyBeginResult {
 }
 
 /**
- * Passkey sign-in on a browser that hasn't used one here before: the account's
- * own passkeys, so a device holding one uses it at once and only a device
- * without any offers another device. No passkey: the caller signs in by email.
+ * Before emailing a code: the account's own passkeys, if it has any, so the
+ * page can offer them instead. A device holding one uses it at once; only a
+ * device without any offers another device.
  */
 export async function beginPasskeyAuthenticationForEmail(email: string): Promise<PasskeyForEmailResult> {
   const rateLimitResult = await enforceRateLimit();

@@ -7,13 +7,13 @@ import { Turnstile } from "@/components/auth/turnstile";
 import { toast } from "sonner";
 import {
   authenticateMagicLink,
-  beginPasskeyAuthentication,
+  beginPasskeyAuthenticationForEmail,
   verifyMagicCode,
+  type PasskeyBeginResult,
 } from "@/lib/actions/auth-actions";
-import { PasskeyEmailStep } from "@/components/auth/passkey-email-step";
+import { PasskeyOffer } from "@/components/auth/passkey-offer";
 import { usePasskeyAutofill, usePasskeySignIn } from "@/components/auth/use-passkey-sign-in";
-import { forgetPasskeyOnDevice, hasPasskeyOnDevice } from "@/lib/auth/passkey-on-device";
-import { ArrowLeft, Fingerprint, KeyRound, Mail, Loader2 } from "lucide-react";
+import { ArrowLeft, KeyRound, Mail, Loader2 } from "lucide-react";
 
 import { useSearchParams } from "next/navigation";
 import { tryCatch } from "@/lib/utils";
@@ -26,11 +26,8 @@ interface AuthFormProps {
   dict: {
     emailLabel: string;
     emailPlaceholder: string;
-    continuePasskey: string;
     sendMagicLink: string;
-    passkeyDescription: string;
     magicLinkDescription: string;
-    orDivider: string;
     toastInitiatingPasskey: string;
     toastInitiatingMagicLink: string;
     toastSuccessPasskey: string;
@@ -48,11 +45,10 @@ interface AuthFormProps {
     sendCodeDescription: string;
     codeOnlyDescription: string;
     toastSuccessCode: string;
-    passkeyEmailTitle: string;
-    passkeyEmailDescription: string;
-    passkeyEmailSubmit: string;
-    passkeyEmailBack: string;
-    noPasskeyForEmail: string;
+    passkeyOfferTitle: string;
+    passkeyOfferDescription: string;
+    usePasskey: string;
+    sendCodeInstead: string;
   };
 }
 
@@ -76,9 +72,6 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Where the link and code just went: the form then asks for the code.
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [activeAction, setActiveAction] = useState<
-    "passkey" | "magic-link" | null
-  >(null);
 
   const honeypotRef = useRef<HTMLInputElement>(null);
   const renderedAtRef = useRef<number>(0);
@@ -111,30 +104,25 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   };
 
   const signInWithPasskey = usePasskeySignIn({ locale, returnTo }, dict);
+  // This device's passkeys show in the email field's autofill: picking one signs in.
   usePasskeyAutofill({ locale, returnTo });
-  // A browser that hasn't used a passkey here: the email first (see PasskeyEmailStep).
-  const [isPasskeyEmailStep, setIsPasskeyEmailStep] = useState(false);
+  // A code was asked for an account that has a passkey: offered first (see PasskeyOffer).
+  const [passkeyOffer, setPasskeyOffer] = useState<{ email: string; prompt: PasskeyBeginResult } | null>(null);
 
-  const handlePasskey = async () => {
-    if (!hasPasskeyOnDevice()) return setIsPasskeyEmailStep(true);
-    setIsSubmitting(true);
-    setActiveAction("passkey");
-    const outcome = await signInWithPasskey(beginPasskeyAuthentication);
-    if (outcome === "signed-in") return;
-    setIsSubmitting(false);
-    setActiveAction(null);
-    // Its passkey may not be here any more: the email first next time, and now.
-    if (outcome === "cancelled") {
-      forgetPasskeyOnDevice();
-      setIsPasskeyEmailStep(true);
-    }
-  };
-
-  const handleMagicLink = async (email: string) => {
+  const handleEmailSubmit = async (email: string) => {
     if (!validateMagicLink(email)) return;
     setIsSubmitting(true);
-    setActiveAction("magic-link");
+    const [, found] = await tryCatch(beginPasskeyAuthenticationForEmail(email));
+    if (found?.success && found.hasPasskey) {
+      setIsSubmitting(false);
+      setPasskeyOffer({ email, prompt: found });
+      return;
+    }
+    await sendCode(email);
+  };
 
+  const sendCode = async (email: string) => {
+    setIsSubmitting(true);
     const toastId = toast.loading(dict.toastInitiatingMagicLink);
     const elapsedMs = Date.now() - renderedAtRef.current;
 
@@ -161,23 +149,22 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
     }
 
     setIsSubmitting(false);
-    setActiveAction(null);
   };
 
   if (sentTo)
     return <CodeSection email={sentTo} onBack={() => setSentTo(null)} dict={dict} />;
 
-  if (isPasskeyEmailStep)
+  if (passkeyOffer)
     return (
-      <PasskeyEmailStep
-        initialEmail={email}
+      <PasskeyOffer
+        email={passkeyOffer.email}
+        passkeyPrompt={passkeyOffer.prompt}
         signIn={signInWithPasskey}
-        onNoPasskey={(passkeyEmail) => {
-          setIsPasskeyEmailStep(false);
-          setEmail(passkeyEmail);
-          void handleMagicLink(passkeyEmail);
+        onSendCode={() => {
+          setPasskeyOffer(null);
+          setEmail(passkeyOffer.email);
+          void sendCode(passkeyOffer.email);
         }}
-        onBack={() => setIsPasskeyEmailStep(false)}
         dict={dict}
       />
     );
@@ -185,33 +172,15 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   return (
     <div className="flex flex-col gap-5">
       <Honeypot honeypotRef={honeypotRef} />
-
-      <PasskeySection
-        isSubmitting={isSubmitting}
-        activeAction={activeAction}
-        onPasskey={handlePasskey}
-        dict={dict}
-      />
-
-      <div className="relative flex items-center justify-center py-1">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-border"></span>
-        </div>
-        <span className="relative bg-card px-3 text-xs uppercase text-muted-foreground font-medium">
-          {dict.orDivider}
-        </span>
-      </div>
-
       <MagicLinkSection
         email={email}
         setEmail={setEmail}
         isSubmitting={isSubmitting}
-        activeAction={activeAction}
         showCaptcha={showCaptcha}
         turnstileToken={turnstileToken}
         setTurnstileToken={setTurnstileToken}
         setShowCaptcha={setShowCaptcha}
-        onSubmit={handleMagicLink}
+        onSubmit={handleEmailSubmit}
         dict={dict}
       />
     </div>
@@ -249,44 +218,10 @@ function Honeypot({
   );
 }
 
-function PasskeySection({
-  isSubmitting,
-  activeAction,
-  onPasskey,
-  dict,
-}: {
-  isSubmitting: boolean;
-  activeAction: "passkey" | "magic-link" | null;
-  onPasskey: () => void;
-  dict: AuthFormProps["dict"];
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <Button
-        type="button"
-        disabled={isSubmitting}
-        onClick={onPasskey}
-        className="w-full h-9 cursor-pointer font-semibold shadow-xs flex items-center justify-center gap-2"
-      >
-        {isSubmitting && activeAction === "passkey" ? (
-          <Loader2 className="animate-spin size-4 text-primary-foreground" />
-        ) : (
-          <Fingerprint className="size-4" />
-        )}
-        {dict.continuePasskey}
-      </Button>
-      <p className="text-[11px] text-muted-foreground leading-normal px-0.5">
-        {dict.passkeyDescription}
-      </p>
-    </div>
-  );
-}
-
 function MagicLinkSection({
   email,
   setEmail,
   isSubmitting,
-  activeAction,
   showCaptcha,
   turnstileToken,
   setTurnstileToken,
@@ -297,7 +232,6 @@ function MagicLinkSection({
   email: string;
   setEmail: (email: string) => void;
   isSubmitting: boolean;
-  activeAction: "passkey" | "magic-link" | null;
   showCaptcha: boolean;
   turnstileToken: string | null;
   setTurnstileToken: (token: string | null) => void;
@@ -368,7 +302,7 @@ function MagicLinkSection({
           disabled={(showCaptcha && !turnstileToken) || isSubmitting}
           className="w-full h-9 cursor-pointer font-semibold shadow-xs border-input hover:bg-accent flex items-center justify-center gap-2"
         >
-          {isSubmitting && activeAction === "magic-link" ? (
+          {isSubmitting ? (
             <Loader2 className="animate-spin size-4 text-muted-foreground" />
           ) : (
             <Mail className="size-4" />
