@@ -37,7 +37,6 @@ function pickLocale(req: NextRequest): Locale {
       const segments = url.pathname.split("/").filter(Boolean);
       const firstSegment = segments[0]?.toLowerCase() ?? "";
       if (hasLocale(firstSegment)) return firstSegment;
-      return DEFAULT_LOCALE;
     }
   }
 
