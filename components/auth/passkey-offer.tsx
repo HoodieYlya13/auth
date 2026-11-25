@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Fingerprint, Loader2, Mail } from "lucide-react";
+import { ArrowLeft, Fingerprint, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PasskeySignInOutcome } from "@/components/auth/use-passkey-sign-in";
 import type { PasskeyBeginResult } from "@/lib/actions/auth-actions";
@@ -11,6 +11,7 @@ interface PasskeyOfferDict {
   passkeyOfferDescription: string;
   usePasskey: string;
   sendCodeInstead: string;
+  codeOtherEmail: string;
 }
 
 /**
@@ -24,12 +25,14 @@ export function PasskeyOffer({
   passkeyPrompt,
   signIn,
   onSendCode,
+  onBack,
   dict,
 }: {
   email: string;
   passkeyPrompt: PasskeyBeginResult;
   signIn: (begin: () => Promise<PasskeyBeginResult>) => Promise<PasskeySignInOutcome>;
   onSendCode: () => void;
+  onBack: () => void;
   dict: PasskeyOfferDict;
 }) {
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -70,6 +73,16 @@ export function PasskeyOffer({
       >
         <Mail className="size-4" />
         {dict.sendCodeInstead}
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        onClick={onBack}
+        disabled={isSigningIn}
+        className="w-full h-9 cursor-pointer text-muted-foreground flex items-center justify-center gap-2"
+      >
+        <ArrowLeft className="size-4" />
+        {dict.codeOtherEmail}
       </Button>
     </div>
   );

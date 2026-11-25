@@ -165,6 +165,7 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
           setEmail(passkeyOffer.email);
           void sendCode(passkeyOffer.email);
         }}
+        onBack={() => setPasskeyOffer(null)}
         dict={dict}
       />
     );
