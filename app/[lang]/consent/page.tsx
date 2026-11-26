@@ -14,6 +14,7 @@ import { withoutPrompt } from "@/lib/oidc/prompt";
 import { ConsentForm } from "@/components/auth/consent-form";
 import { Suspense } from "react";
 import { safeReturnTo } from "@/lib/redirect";
+import { logReturnTo } from "@/lib/return-to-debug";
 
 function ConsentSkeleton() {
   return (
@@ -59,6 +60,7 @@ async function ConsentSection({
   if (!session) redirect(signInPath(lang, returnTo));
   const { user } = session;
   const parsed = returnTo ? parseAuthorizeReturnTo(returnTo) : null;
+  await logReturnTo("consent", { hasReturnTo: !!returnTo, parsed: !!parsed });
   if (!parsed) redirect(`/${lang}/account`);
 
   const client = await getClient(parsed.clientId);

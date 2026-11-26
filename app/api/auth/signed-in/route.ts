@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { forgetStaleSessionCookie, getSession } from "@/lib/auth/session";
 import { hasLocale } from "@/lib/dictionaries/dictionaries";
 import { safeReturnTo } from "@/lib/redirect";
+import { logReturnTo } from "@/lib/return-to-debug";
 
 const DEFAULT_LOCALE = "en";
 
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
   const locale = lang && hasLocale(lang) ? lang : DEFAULT_LOCALE;
   const returnTo = safeReturnTo(p.get("return_to"));
 
+  await logReturnTo("signed-in", { hasReturnTo: !!returnTo, isRsc: !!req.headers.get("rsc") });
   if (await getSession())
     return NextResponse.redirect(new URL(returnTo ?? `/${locale}/account`, req.nextUrl.origin));
 

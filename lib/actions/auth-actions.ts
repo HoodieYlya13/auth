@@ -13,7 +13,8 @@ import {
   RateLimitError,
 } from "@/lib/ratelimit";
 import { isCaptchaEnabled, verifyTurnstileToken } from "@/lib/turnstile";
-import { tryCatch } from "@/lib/utils";
+import { tryCatch, tryCatchSync } from "@/lib/utils";
+import { logReturnTo } from "@/lib/return-to-debug";
 import {
   completeRegistrationPath,
   isAppSignIn,
@@ -232,6 +233,15 @@ async function startPasskeyFlow(
   return { success: true, ...result };
 }
 
+/** The return_to of the page the action was sent from: the sign-in page's own address. */
+async function returnToOfSigningInPage(): Promise<string | undefined> {
+  const referer = (await headers()).get("referer");
+  if (!referer) return undefined;
+  const [, page] = tryCatchSync(() => new URL(referer));
+  if (!page || page.origin !== new URL(ISSUER).origin) return undefined;
+  return safeReturnTo(page.searchParams.get("return_to"));
+}
+
 export interface PasskeyFinishResult {
   success: boolean;
   redirectTo?: string;
@@ -244,7 +254,9 @@ export async function finishPasskeyAuthenticationAction(
 ): Promise<PasskeyFinishResult> {
   const destination = await getRedis().getdel<SignInDestination>(passkeyDestinationKey(flowId));
   const locale = destination?.locale ?? DEFAULT_LOCALE;
-  const returnTo = destination?.returnTo;
+  const pageReturnTo = await returnToOfSigningInPage();
+  const returnTo = destination?.returnTo ?? pageReturnTo;
+  await logReturnTo("passkey-finish", { hasDestination: !!destination, keptReturnTo: !!destination?.returnTo, pageReturnTo: !!pageReturnTo });
   const [error, userId] = await tryCatch(
     finishPasskeyAuthentication(flowId, response),
   );

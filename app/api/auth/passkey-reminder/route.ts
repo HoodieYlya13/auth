@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/passkey-prompt";
 import { hasLocale } from "@/lib/dictionaries/dictionaries";
 import { safeReturnTo } from "@/lib/redirect";
+import { logReturnTo } from "@/lib/return-to-debug";
 
 const DEFAULT_LOCALE = "en";
 
@@ -21,6 +22,7 @@ export async function GET(req: NextRequest) {
   const lang = p.get("lang");
   const locale = lang && hasLocale(lang) ? lang : DEFAULT_LOCALE;
   const returnTo = safeReturnTo(p.get("return_to")) ?? `/${locale}/account`;
+  await logReturnTo("passkey-reminder", { hasReturnTo: !!safeReturnTo(p.get("return_to")) });
   const back = (path: string) => NextResponse.redirect(new URL(path, req.nextUrl.origin));
 
   const session = await getSession();
