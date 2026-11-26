@@ -31,11 +31,17 @@ export function proxy(req: NextRequest) {
   const isProtected = PROTECTED.some(
     (p) => rest === p || rest.startsWith(`${p}/`),
   );
+  // Page loads only: the refetch after a sign-in's server action set the cookie must not race its redirect (iOS).
+  const isPageLoad =
+    req.method === "GET" &&
+    !req.headers.has("rsc") &&
+    !req.headers.has("next-router-prefetch") &&
+    req.headers.get("purpose") !== "prefetch";
   if (!isProtected) {
     // Already signed in, maybe: app/api/auth/signed-in checks the session
     // still exists before skipping the sign-in page (else it drops the cookie).
     const isReauthentication = req.nextUrl.searchParams.get("reauth") === "1";
-    if (rest === "/" && req.cookies.has(SESSION_COOKIE) && !isReauthentication) {
+    if (isPageLoad && rest === "/" && req.cookies.has(SESSION_COOKIE) && !isReauthentication) {
       const url = new URL("/api/auth/signed-in", req.nextUrl.origin);
       url.searchParams.set("lang", locale);
       const safe = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
@@ -54,14 +60,7 @@ export function proxy(req: NextRequest) {
   }
 
   // Once a day, the first page loaded checks for a passkey on the way (see
-  // app/api/auth/passkey-reminder). Only for page loads: not server actions
-  // (POSTs), nor prefetches and client navigations (a full page load came
-  // first, and a prefetch would use up the day unseen).
-  const isPageLoad =
-    req.method === "GET" &&
-    !req.headers.has("rsc") &&
-    !req.headers.has("next-router-prefetch") &&
-    req.headers.get("purpose") !== "prefetch";
+  // app/api/auth/passkey-reminder); a prefetch would use up the day unseen.
   if (
     isPageLoad &&
     !req.cookies.has(REMINDER_COOKIE) &&

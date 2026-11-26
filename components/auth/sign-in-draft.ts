@@ -27,24 +27,32 @@ function write(key: string, value: string | null) {
 export const savedEmail = () => (typeof window === "undefined" ? "" : (read(EMAIL_KEY) ?? ""));
 export const saveEmail = (email: string) => write(EMAIL_KEY, email);
 
-/** The address a code was sent to, while that code still works. */
-export function savedCodeRecipient(): string | null {
+interface SentCode {
+  email: string;
+  sentAt: number;
+  /** The sign-in it was for: a code carries where it leads, so another sign-in mustn't reuse its screen. */
+  returnTo: string | null;
+}
+
+/** The address a code was sent to, while that code still works, for this same sign-in. */
+export function savedCodeRecipient(returnTo: string | undefined): string | null {
   if (typeof window === "undefined") return null;
   const saved = read(SENT_TO_KEY);
   if (!saved) return null;
   try {
-    const { email, sentAt } = JSON.parse(saved) as { email: string; sentAt: number };
-    return Date.now() - sentAt < CODE_LIFETIME_MS ? email : null;
+    const code = JSON.parse(saved) as SentCode;
+    const isSameSignIn = code.returnTo === (returnTo ?? null);
+    return isSameSignIn && Date.now() - code.sentAt < CODE_LIFETIME_MS ? code.email : null;
   } catch {
     return null;
   }
 }
 
-export const saveCodeRecipient = (email: string | null) =>
-  write(SENT_TO_KEY, email && JSON.stringify({ email, sentAt: Date.now() }));
+export const saveCodeRecipient = (email: string | null, returnTo: string | undefined) =>
+  write(SENT_TO_KEY, email && JSON.stringify({ email, sentAt: Date.now(), returnTo: returnTo ?? null } satisfies SentCode));
 
 /** Signed in: the next visit starts from an empty form. */
 export function forgetSignInDraft() {
   saveEmail("");
-  saveCodeRecipient(null);
+  saveCodeRecipient(null, undefined);
 }

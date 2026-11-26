@@ -11,6 +11,7 @@ import {
   beginPasskeyAutofill,
   finishPasskeyAuthenticationAction,
   type PasskeyBeginResult,
+  type SignInDestination,
 } from "@/lib/actions/auth-actions";
 import { tryCatch } from "@/lib/utils";
 import { forgetSignInDraft } from "@/components/auth/sign-in-draft";
@@ -21,10 +22,6 @@ interface PasskeyMessages {
   toastErrorPasskey: string;
 }
 
-interface Destination {
-  locale: string;
-  returnTo?: string;
-}
 
 /** What the form shows meanwhile: the passkey answered and the server checks it, or it didn't work out; and whether the user gave up. */
 export interface PasskeyProgress {
@@ -33,16 +30,15 @@ export interface PasskeyProgress {
   isCancelled: () => boolean;
 }
 
-/** Checks the passkey's answer and goes on to where the sign-in leads, saying so meanwhile. */
+/** Checks the passkey's answer and goes on to where the sign-in leads (kept by the server since the prompt began), saying so meanwhile. */
 async function verifyAndContinue(
   flowId: string,
   assertion: AuthenticationResponseJSON,
-  { locale, returnTo }: Destination,
   progress: PasskeyProgress,
   messages: PasskeyMessages,
 ): Promise<boolean> {
   progress.onVerifying();
-  const [error, result] = await tryCatch(finishPasskeyAuthenticationAction(flowId, assertion, locale, returnTo));
+  const [error, result] = await tryCatch(finishPasskeyAuthenticationAction(flowId, assertion));
   // Cancelled meanwhile: the form is back, and stays.
   if (progress.isCancelled()) return false;
   if (!error && result.success && result.redirectTo) {
@@ -55,8 +51,8 @@ async function verifyAndContinue(
   return false;
 }
 
-/** Signs in with the passkey prompt `begin` prepares: any passkey of this site, or one account's own. */
-export function usePasskeySignIn(destination: Destination, messages: PasskeyMessages, progress: PasskeyProgress) {
+/** Signs in with the passkey prompt `begin` prepares (with the sign-in's destination): any passkey of this site, or one account's own. */
+export function usePasskeySignIn(messages: PasskeyMessages, progress: PasskeyProgress) {
   return async function signIn(begin: () => Promise<PasskeyBeginResult>): Promise<PasskeySignInOutcome> {
     const [beginError, started] = await tryCatch(begin());
     if (beginError || !started.success || !started.options || !started.flowId) {
@@ -68,7 +64,7 @@ export function usePasskeySignIn(destination: Destination, messages: PasskeyMess
       toast.error(messages.toastErrorPasskey);
       return promptError?.name === "NotAllowedError" ? "cancelled" : "failed";
     }
-    const isSignedIn = await verifyAndContinue(started.flowId, assertion, destination, progress, messages);
+    const isSignedIn = await verifyAndContinue(started.flowId, assertion, progress, messages);
     return isSignedIn ? "signed-in" : "failed";
   };
 }
@@ -78,16 +74,14 @@ export function usePasskeySignIn(destination: Destination, messages: PasskeyMess
  * autocomplete ends with "webauthn"): picking one signs in, and a device
  * without any shows nothing, never another device's QR code.
  */
-export function usePasskeyAutofill(destination: Destination, messages: PasskeyMessages, progress: PasskeyProgress) {
+export function usePasskeyAutofill(destination: SignInDestination, messages: PasskeyMessages, progress: PasskeyProgress) {
   const { locale, returnTo } = destination;
-  const verify = useEffectEvent((flowId: string, assertion: AuthenticationResponseJSON) =>
-    verifyAndContinue(flowId, assertion, { locale, returnTo }, progress, messages),
-  );
+  const verify = useEffectEvent((flowId: string, assertion: AuthenticationResponseJSON) => verifyAndContinue(flowId, assertion, progress, messages));
 
   useEffect(() => {
     void (async () => {
       if (!(await browserSupportsWebAuthnAutofill())) return;
-      const started = await beginPasskeyAutofill();
+      const started = await beginPasskeyAutofill({ locale, returnTo });
       if (!started.success || !started.options || !started.flowId) return;
       // Ends with an error when a passkey button opens its own prompt instead: nothing to do then.
       const [error, assertion] = await tryCatch(startAuthentication({ optionsJSON: started.options, useBrowserAutofill: true }));

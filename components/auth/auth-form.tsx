@@ -73,9 +73,9 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useStateResetOnBack(false);
   // Where the link and code just went: the form then asks for the code.
-  const [sentTo, setSentTo] = useState<string | null>(savedCodeRecipient);
+  const [sentTo, setSentTo] = useState<string | null>(() => savedCodeRecipient(returnTo));
   useEffect(() => saveEmail(email), [email]);
-  useEffect(() => saveCodeRecipient(sentTo), [sentTo]);
+  useEffect(() => saveCodeRecipient(sentTo, returnTo), [sentTo, returnTo]);
 
   const honeypotRef = useRef<HTMLInputElement>(null);
   const renderedAtRef = useRef<number>(0);
@@ -122,7 +122,7 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
     isPasskeySignInCancelled.current = true;
     setIsVerifyingPasskey(false);
   };
-  const signInWithPasskey = usePasskeySignIn({ locale, returnTo }, dict, passkeyProgress);
+  const signInWithPasskey = usePasskeySignIn(dict, passkeyProgress);
   // This device's passkeys show in the email field's autofill: picking one signs in.
   usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
   // A code was asked for an account that has a passkey: offered first (see PasskeyOffer).
@@ -131,7 +131,7 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   const handleEmailSubmit = async (email: string) => {
     if (!validateMagicLink(email)) return;
     setIsSubmitting(true);
-    const [, found] = await tryCatch(beginPasskeyAuthenticationForEmail(email));
+    const [, found] = await tryCatch(beginPasskeyAuthenticationForEmail(email, { locale, returnTo }));
     if (found?.success && found.hasPasskey) {
       setIsSubmitting(false);
       setPasskeyOffer({ email, prompt: found });

@@ -20,6 +20,8 @@ import {
   safeReturnTo,
 } from "@/lib/redirect";
 import { prisma } from "@/lib/db";
+import { getRedis } from "@/lib/redis";
+import { hasLocale } from "@/lib/dictionaries/dictionaries";
 import { findSigningInApp } from "@/lib/oidc/clients";
 import { createSession } from "@/lib/auth/session";
 import {
@@ -165,6 +167,16 @@ export async function verifyMagicCode(
   return { success: true, redirectTo };
 }
 
+/** Where a sign-in leads: the page's language, and the app's request it returns to. */
+export interface SignInDestination {
+  locale: string;
+  returnTo?: string;
+}
+
+/** Kept with the passkey prompt, as the emailed code keeps it: the page can't lose it on the way (it did on iOS). */
+const PASSKEY_DESTINATION_TTL_SECONDS = 5 * 60;
+const passkeyDestinationKey = (flowId: string) => `wa:dest:${flowId}`;
+
 export interface PasskeyBeginResult {
   success: boolean;
   options?: PublicKeyCredentialRequestOptionsJSON;
@@ -177,10 +189,10 @@ export interface PasskeyBeginResult {
  * visit of the sign-in page: its own, looser limit, so it never uses up the
  * sign-in attempts.
  */
-export async function beginPasskeyAutofill(): Promise<PasskeyBeginResult> {
+export async function beginPasskeyAutofill(destination: SignInDestination): Promise<PasskeyBeginResult> {
   const rateLimitResult = await enforceRateLimit(() => checkRateLimit("passkey-autofill"));
   if (rateLimitResult) return { success: false, error: rateLimitResult.error };
-  return startPasskeyFlow();
+  return startPasskeyFlow(destination);
 }
 
 export interface PasskeyForEmailResult extends PasskeyBeginResult {
@@ -193,7 +205,7 @@ export interface PasskeyForEmailResult extends PasskeyBeginResult {
  * page can offer them instead. A device holding one uses it at once; only a
  * device without any offers another device.
  */
-export async function beginPasskeyAuthenticationForEmail(email: string): Promise<PasskeyForEmailResult> {
+export async function beginPasskeyAuthenticationForEmail(email: string, destination: SignInDestination): Promise<PasskeyForEmailResult> {
   const rateLimitResult = await enforceRateLimit();
   if (rateLimitResult) return { success: false, error: rateLimitResult.error };
 
@@ -203,15 +215,20 @@ export async function beginPasskeyAuthenticationForEmail(email: string): Promise
 
   const passkeys = await findPasskeysByEmail(parsedEmail.data);
   if (passkeys.length === 0) return { success: true, hasPasskey: false };
-  return { ...(await startPasskeyFlow(passkeys)), hasPasskey: true };
+  return { ...(await startPasskeyFlow(destination, passkeys)), hasPasskey: true };
 }
 
-async function startPasskeyFlow(passkeys?: Awaited<ReturnType<typeof findPasskeysByEmail>>): Promise<PasskeyBeginResult> {
+async function startPasskeyFlow(
+  destination: SignInDestination,
+  passkeys?: Awaited<ReturnType<typeof findPasskeysByEmail>>,
+): Promise<PasskeyBeginResult> {
   const [error, result] = await tryCatch(startPasskeyAuthentication(passkeys));
   if (error || !result) {
     console.error("Passkey begin failed:", error);
     return { success: false, error: "Could not start passkey sign-in." };
   }
+  const kept: SignInDestination = { locale: hasLocale(destination.locale) ? destination.locale : DEFAULT_LOCALE, returnTo: safeReturnTo(destination.returnTo) };
+  await getRedis().set(passkeyDestinationKey(result.flowId), kept, { ex: PASSKEY_DESTINATION_TTL_SECONDS });
   return { success: true, ...result };
 }
 
@@ -224,9 +241,10 @@ export interface PasskeyFinishResult {
 export async function finishPasskeyAuthenticationAction(
   flowId: string,
   response: AuthenticationResponseJSON,
-  locale: string = DEFAULT_LOCALE,
-  returnTo?: string,
 ): Promise<PasskeyFinishResult> {
+  const destination = await getRedis().getdel<SignInDestination>(passkeyDestinationKey(flowId));
+  const locale = destination?.locale ?? DEFAULT_LOCALE;
+  const returnTo = destination?.returnTo;
   const [error, userId] = await tryCatch(
     finishPasskeyAuthentication(flowId, response),
   );
