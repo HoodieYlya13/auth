@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useEffectEvent } from "react";
 import { toast } from "sonner";
 import {
   browserSupportsWebAuthnAutofill,
@@ -17,8 +17,6 @@ import { tryCatch } from "@/lib/utils";
 export type PasskeySignInOutcome = "signed-in" | "cancelled" | "failed";
 
 interface PasskeyMessages {
-  toastInitiatingPasskey: string;
-  toastSuccessPasskey: string;
   toastErrorPasskey: string;
 }
 
@@ -27,35 +25,46 @@ interface Destination {
   returnTo?: string;
 }
 
-/** Checks the passkey's answer and goes on to where the sign-in leads. */
-async function finishSignIn(
+/** What the form shows meanwhile: the passkey answered and the server checks it, or it didn't work out. */
+export interface PasskeyProgress {
+  onVerifying: () => void;
+  onFailed: () => void;
+}
+
+/** Checks the passkey's answer and goes on to where the sign-in leads, saying so meanwhile. */
+async function verifyAndContinue(
   flowId: string,
   assertion: AuthenticationResponseJSON,
   { locale, returnTo }: Destination,
-): Promise<{ redirectTo: string } | { error?: string }> {
-  const result = await finishPasskeyAuthenticationAction(flowId, assertion, locale, returnTo);
-  if (!result.success || !result.redirectTo) return { error: result.error };
-  return { redirectTo: result.redirectTo };
+  progress: PasskeyProgress,
+  messages: PasskeyMessages,
+): Promise<boolean> {
+  progress.onVerifying();
+  const [error, result] = await tryCatch(finishPasskeyAuthenticationAction(flowId, assertion, locale, returnTo));
+  if (!error && result.success && result.redirectTo) {
+    window.location.href = result.redirectTo;
+    return true;
+  }
+  progress.onFailed();
+  toast.error(result?.error || messages.toastErrorPasskey);
+  return false;
 }
 
 /** Signs in with the passkey prompt `begin` prepares: any passkey of this site, or one account's own. */
-export function usePasskeySignIn(destination: Destination, messages: PasskeyMessages) {
+export function usePasskeySignIn(destination: Destination, messages: PasskeyMessages, progress: PasskeyProgress) {
   return async function signIn(begin: () => Promise<PasskeyBeginResult>): Promise<PasskeySignInOutcome> {
-    const toastId = toast.loading(messages.toastInitiatingPasskey);
-    const [error, outcome] = await tryCatch(async () => {
-      const started = await begin();
-      if (!started.success || !started.options || !started.flowId) return { error: started.error };
-      const assertion = await startAuthentication({ optionsJSON: started.options });
-      return finishSignIn(started.flowId, assertion, destination);
-    });
-
-    if (outcome && "redirectTo" in outcome) {
-      toast.success(messages.toastSuccessPasskey, { id: toastId });
-      window.location.href = outcome.redirectTo;
-      return "signed-in";
+    const [beginError, started] = await tryCatch(begin());
+    if (beginError || !started.success || !started.options || !started.flowId) {
+      toast.error(started?.error || messages.toastErrorPasskey);
+      return "failed";
     }
-    toast.error(outcome?.error || messages.toastErrorPasskey, { id: toastId });
-    return error?.name === "NotAllowedError" ? "cancelled" : "failed";
+    const [promptError, assertion] = await tryCatch(startAuthentication({ optionsJSON: started.options }));
+    if (promptError || !assertion) {
+      toast.error(messages.toastErrorPasskey);
+      return promptError?.name === "NotAllowedError" ? "cancelled" : "failed";
+    }
+    const isSignedIn = await verifyAndContinue(started.flowId, assertion, destination, progress, messages);
+    return isSignedIn ? "signed-in" : "failed";
   };
 }
 
@@ -64,9 +73,11 @@ export function usePasskeySignIn(destination: Destination, messages: PasskeyMess
  * autocomplete ends with "webauthn"): picking one signs in, and a device
  * without any shows nothing, never another device's QR code.
  */
-export function usePasskeyAutofill(destination: Destination, messages: PasskeyMessages) {
+export function usePasskeyAutofill(destination: Destination, messages: PasskeyMessages, progress: PasskeyProgress) {
   const { locale, returnTo } = destination;
-  const { toastInitiatingPasskey, toastSuccessPasskey, toastErrorPasskey } = messages;
+  const verify = useEffectEvent((flowId: string, assertion: AuthenticationResponseJSON) =>
+    verifyAndContinue(flowId, assertion, { locale, returnTo }, progress, messages),
+  );
 
   useEffect(() => {
     void (async () => {
@@ -76,15 +87,7 @@ export function usePasskeyAutofill(destination: Destination, messages: PasskeyMe
       // Ends with an error when a passkey button opens its own prompt instead: nothing to do then.
       const [error, assertion] = await tryCatch(startAuthentication({ optionsJSON: started.options, useBrowserAutofill: true }));
       if (error || !assertion) return;
-      // Picked from the autofill: the server checks it now, which can take a moment.
-      const toastId = toast.loading(toastInitiatingPasskey);
-      const [finishError, outcome] = await tryCatch(finishSignIn(started.flowId, assertion, { locale, returnTo }));
-      if (!finishError && "redirectTo" in outcome) {
-        toast.success(toastSuccessPasskey, { id: toastId });
-        window.location.href = outcome.redirectTo;
-        return;
-      }
-      toast.error((outcome && "error" in outcome && outcome.error) || toastErrorPasskey, { id: toastId });
+      await verify(started.flowId, assertion);
     })();
-  }, [locale, returnTo, toastInitiatingPasskey, toastSuccessPasskey, toastErrorPasskey]);
+  }, [locale, returnTo]);
 }

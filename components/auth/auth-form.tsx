@@ -13,7 +13,7 @@ import {
 } from "@/lib/actions/auth-actions";
 import { PasskeyOffer } from "@/components/auth/passkey-offer";
 import { usePasskeyAutofill, usePasskeySignIn } from "@/components/auth/use-passkey-sign-in";
-import { ArrowLeft, KeyRound, Mail, Loader2 } from "lucide-react";
+import { ArrowLeft, Fingerprint, KeyRound, Mail, Loader2 } from "lucide-react";
 
 import { useSearchParams } from "next/navigation";
 import { tryCatch } from "@/lib/utils";
@@ -28,9 +28,7 @@ interface AuthFormProps {
     emailPlaceholder: string;
     sendMagicLink: string;
     magicLinkDescription: string;
-    toastInitiatingPasskey: string;
     toastInitiatingMagicLink: string;
-    toastSuccessPasskey: string;
     toastSuccessMagicLink: string;
     toastErrorEmail: string;
     toastErrorSpam: string;
@@ -49,6 +47,7 @@ interface AuthFormProps {
     passkeyOfferDescription: string;
     usePasskey: string;
     sendCodeInstead: string;
+    passkeyVerifying: string;
   };
 }
 
@@ -103,9 +102,12 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
     return true;
   };
 
-  const signInWithPasskey = usePasskeySignIn({ locale, returnTo }, dict);
+  // The passkey answered: the form gives way to the sign-in under way, until the next page opens.
+  const [isVerifyingPasskey, setIsVerifyingPasskey] = useState(false);
+  const passkeyProgress = { onVerifying: () => setIsVerifyingPasskey(true), onFailed: () => setIsVerifyingPasskey(false) };
+  const signInWithPasskey = usePasskeySignIn({ locale, returnTo }, dict, passkeyProgress);
   // This device's passkeys show in the email field's autofill: picking one signs in.
-  usePasskeyAutofill({ locale, returnTo }, dict);
+  usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
   // A code was asked for an account that has a passkey: offered first (see PasskeyOffer).
   const [passkeyOffer, setPasskeyOffer] = useState<{ email: string; prompt: PasskeyBeginResult } | null>(null);
 
@@ -151,6 +153,8 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
     setIsSubmitting(false);
   };
 
+  if (isVerifyingPasskey) return <PasskeyVerifying label={dict.passkeyVerifying} />;
+
   if (sentTo)
     return <CodeSection email={sentTo} onBack={() => setSentTo(null)} dict={dict} />;
 
@@ -184,6 +188,20 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
         onSubmit={handleEmailSubmit}
         dict={dict}
       />
+    </div>
+  );
+}
+
+/** A fingerprint with a ring sweeping around it, while the server checks the passkey and the next page loads. */
+function PasskeyVerifying({ label }: { label: string }) {
+  return (
+    <div role="status" aria-live="polite" className="flex flex-col items-center gap-5 py-6 animate-in fade-in zoom-in-95 duration-300">
+      <div className="relative grid size-20 place-items-center">
+        <span aria-hidden className="absolute inset-0 rounded-full bg-primary/10 animate-ping [animation-duration:1.6s]" />
+        <span aria-hidden className="absolute inset-0 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+        <Fingerprint aria-hidden className="size-9 text-primary animate-pulse" />
+      </div>
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
     </div>
   );
 }
