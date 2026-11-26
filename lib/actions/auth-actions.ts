@@ -276,5 +276,6 @@ export async function finishPasskeyAuthenticationAction(
     redirectTo = completeRegistrationPath(locale, safe);
   else redirectTo = safe ?? `/${locale}/account`;
 
+  await logReturnTo("passkey-result", { redirectPath: redirectTo.split("?")[0], hasUsername: !!user.username });
   return { success: true, redirectTo };
 }
