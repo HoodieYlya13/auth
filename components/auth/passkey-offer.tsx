@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { ArrowLeft, Fingerprint, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PasskeySignInOutcome } from "@/components/auth/use-passkey-sign-in";
 import type { PasskeyBeginResult } from "@/lib/actions/auth-actions";
+import { useStateResetOnBack } from "@/components/use-state-reset-on-back";
 
 interface PasskeyOfferDict {
   passkeyOfferTitle: string;
@@ -35,7 +35,7 @@ export function PasskeyOffer({
   onBack: () => void;
   dict: PasskeyOfferDict;
 }) {
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useStateResetOnBack(false);
 
   async function signInWithPasskey() {
     setIsSigningIn(true);

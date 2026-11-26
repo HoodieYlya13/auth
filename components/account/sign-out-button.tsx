@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/actions/account-actions";
+import { useStateResetOnBack } from "@/components/use-state-reset-on-back";
 
 export function SignOutButton({
   locale,
@@ -14,7 +14,7 @@ export function SignOutButton({
   clientId?: string;
   label: string;
 }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useStateResetOnBack(false);
   return (
     <Button
       type="button"

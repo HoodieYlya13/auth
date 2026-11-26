@@ -2,6 +2,7 @@
   "metaTitle": "HY13 Passkey SSO",
   "metaDescription": "Secure passwordless authentication service using Passkey and Magic Link.",
   "welcome": "Sign In",
+  "languageLabel": "Language",
   "description": "Choose your preferred secure login method",
   "emailLabel": "Email Address",
   "emailPlaceholder": "name@example.com",
@@ -9,6 +10,7 @@
   "magicLinkDescription": "We will email you a secure link and a code to sign in.",
   "toastInitiatingMagicLink": "Transmitting magic link request...",
   "passkeyVerifying": "Signing you in with your passkey…",
+  "passkeyCancel": "Cancel",
   "toastSuccessMagicLink": "Magic link sent successfully!",
   "toastErrorEmail": "Please enter a valid email address.",
   "toastErrorSpam": "Spam detection triggered.",
@@ -95,7 +97,6 @@
     "unsavedDescription": "Your profile has changes you haven't saved yet.",
     "unsavedSave": "Save and leave",
     "unsavedDiscard": "Leave without saving",
-    "unsavedStay": "Stay",
     "profileError": "Could not save changes.",
     "photoLabel": "Profile photo",
     "uploadPhoto": "Upload photo",
@@ -196,5 +197,22 @@
     "noUsers": "No users yet.",
     "adminBadge": "Admin",
     "noMemberships": "No linked apps."
+  },
+  "emails": {
+    "signInTitle": "Sign in",
+    "signInLinkSubject": "Your sign-in link",
+    "signInCodeSubject": "Your sign-in code: {code}",
+    "signInLinkIntro": "Click the button below to sign in. This link is valid for 15 minutes and can be used once.",
+    "signInLinkTextIntro": "Click to sign in (valid for 15 minutes):",
+    "signInButton": "Sign in",
+    "signInOrCode": "Or enter this code on the sign-in page:",
+    "signInCodeIntro": "Enter this code on the sign-in page. It is valid for 15 minutes and can be used once.",
+    "ignoreNote": "If you didn't request this, you can ignore this email.",
+    "passkeyAddedSubject": "A passkey was added to your account",
+    "passkeyRemovedSubject": "A passkey was removed from your account",
+    "passkeyAddedIfNotYou": "If this wasn't you, remove it from your account page and sign out of the sessions you don't recognise.",
+    "passkeyRemovedIfNotYou": "If this wasn't you, sign out of the sessions you don't recognise on your account page.",
+    "unnamedPasskey": "Unnamed passkey",
+    "accountButton": "Your account"
   }
 }

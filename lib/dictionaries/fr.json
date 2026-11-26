@@ -2,6 +2,7 @@
   "metaTitle": "HY13 Passkey SSO",
   "metaDescription": "Service d'authentification sécurisé sans mot de passe via Passkey et Lien Magique.",
   "welcome": "Connexion",
+  "languageLabel": "Langue",
   "description": "Choisissez votre méthode de connexion sécurisée",
   "emailLabel": "Adresse e-mail",
   "emailPlaceholder": "nom@exemple.com",
@@ -9,6 +10,7 @@
   "magicLinkDescription": "Nous vous enverrons un e-mail avec un lien et un code pour vous connecter.",
   "toastInitiatingMagicLink": "Transmission de la demande de lien magique...",
   "passkeyVerifying": "Connexion avec votre passkey…",
+  "passkeyCancel": "Annuler",
   "toastSuccessMagicLink": "Lien magique envoyé avec succès !",
   "toastErrorEmail": "Veuillez entrer une adresse e-mail valide.",
   "toastErrorSpam": "Détection de spam déclenchée.",
@@ -95,7 +97,6 @@
     "unsavedDescription": "Votre profil a des modifications pas encore enregistrées.",
     "unsavedSave": "Enregistrer et quitter",
     "unsavedDiscard": "Quitter sans enregistrer",
-    "unsavedStay": "Rester",
     "profileError": "Impossible d'enregistrer les modifications.",
     "photoLabel": "Photo de profil",
     "uploadPhoto": "Ajouter une photo",
@@ -196,5 +197,22 @@
     "noUsers": "Aucun utilisateur.",
     "adminBadge": "Admin",
     "noMemberships": "Aucune application liée."
+  },
+  "emails": {
+    "signInTitle": "Connexion",
+    "signInLinkSubject": "Votre lien de connexion",
+    "signInCodeSubject": "Votre code de connexion : {code}",
+    "signInLinkIntro": "Cliquez sur le bouton ci-dessous pour vous connecter. Ce lien est valable 15 minutes et ne sert qu'une fois.",
+    "signInLinkTextIntro": "Cliquez pour vous connecter (valable 15 minutes) :",
+    "signInButton": "Se connecter",
+    "signInOrCode": "Ou saisissez ce code sur la page de connexion :",
+    "signInCodeIntro": "Saisissez ce code sur la page de connexion. Il est valable 15 minutes et ne sert qu'une fois.",
+    "ignoreNote": "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.",
+    "passkeyAddedSubject": "Une passkey a été ajoutée à votre compte",
+    "passkeyRemovedSubject": "Une passkey a été supprimée de votre compte",
+    "passkeyAddedIfNotYou": "Si ce n'était pas vous, supprimez-la depuis votre compte et déconnectez les sessions que vous ne reconnaissez pas.",
+    "passkeyRemovedIfNotYou": "Si ce n'était pas vous, déconnectez les sessions que vous ne reconnaissez pas depuis votre compte.",
+    "unnamedPasskey": "Passkey sans nom",
+    "accountButton": "Votre compte"
   }
 }

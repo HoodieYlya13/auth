@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import type { RegistrationResponseJSON } from "@simplewebauthn/server";
 import { Prisma } from "@/lib/generated/prisma/client";
 import { prisma } from "@/lib/db";
@@ -24,6 +25,7 @@ import {
   startPasskeyRegistration,
 } from "@/lib/auth/webauthn";
 import { findReturnApp } from "@/lib/oidc/clients";
+import { sendPasskeyNotice, type PasskeyChange } from "@/lib/auth/passkey-notice";
 import {
   AVATAR_MAX_BYTES,
   avatarPath,
@@ -237,6 +239,7 @@ export async function beginPasskeyRegistrationAction(): Promise<PasskeyRegisterB
 
 export async function finishPasskeyRegistrationAction(
   response: RegistrationResponseJSON,
+  locale: string,
   label?: string,
 ): Promise<ActionResult> {
   const [authError, user] = await tryCatch(getCurrentUser());
@@ -250,7 +253,15 @@ export async function finishPasskeyRegistrationAction(
     console.error("Passkey registration failed:", error);
     return { success: false, error: "Could not add that passkey." };
   }
+  noticePasskeyChange(user.email, { change: "added", passkeyName: label?.trim() || null, locale });
   return { success: true };
+}
+
+/** Emailed once the answer is sent: a slow mail service never holds up the page. */
+function noticePasskeyChange(email: string, notice: { change: PasskeyChange; passkeyName: string | null; locale: string }) {
+  after(() =>
+    sendPasskeyNotice(email, notice.change, notice.passkeyName, notice.locale).catch((error) => console.error("Passkey notice failed:", error)),
+  );
 }
 
 export async function renamePasskey(
@@ -266,10 +277,12 @@ export async function renamePasskey(
   return { success: true };
 }
 
-export async function deletePasskey(id: string): Promise<ActionResult> {
+export async function deletePasskey(id: string, locale: string): Promise<ActionResult> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "You are not signed in." };
-  await prisma.credential.deleteMany({ where: { id, userId: user.id } });
+  const removed = await prisma.credential.findFirst({ where: { id, userId: user.id }, select: { name: true } });
+  const { count } = await prisma.credential.deleteMany({ where: { id, userId: user.id } });
+  if (removed && count > 0) noticePasskeyChange(user.email, { change: "removed", passkeyName: removed.name, locale });
   return { success: true };
 }
 

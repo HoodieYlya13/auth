@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "../globals.css";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { Toaster } from "sonner";
+import { Suspense } from "react";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +38,8 @@ export default async function RootLayout({
   params,
 }: LayoutProps<"/[lang]">) {
   const { lang } = await params;
+  const locale = hasLocale(lang) ? lang : "en";
+  const dict = await getDictionary(locale);
 
   return (
     <html
@@ -43,6 +47,10 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
       <body>
+        {/* It reads the query string, which only exists at request time. */}
+        <Suspense fallback={null}>
+          <LocaleSwitcher current={locale} label={dict.languageLabel} />
+        </Suspense>
         {children}
         <Toaster
           position="top-center"

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Fingerprint, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { startRegistration } from "@simplewebauthn/browser";
@@ -10,6 +9,7 @@ import {
   finishPasskeyRegistrationAction,
 } from "@/lib/actions/account-actions";
 import { tryCatch } from "@/lib/utils";
+import { useStateResetOnBack } from "@/components/use-state-reset-on-back";
 
 interface PasskeyPromptDict {
   add: string;
@@ -23,12 +23,14 @@ interface PasskeyPromptDict {
 /** Add a passkey, or go on without one. Either way ends at `next`. */
 export function PasskeyPrompt({
   next,
+  locale,
   dict,
 }: {
   next: string;
+  locale: string;
   dict: PasskeyPromptDict;
 }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useStateResetOnBack(false);
   const goOn = () => {
     window.location.href = next;
   };
@@ -60,7 +62,7 @@ export function PasskeyPrompt({
 
     // Unnamed: it shows as the device type, and can be renamed from the account page.
     const [finishError, result] = await tryCatch(
-      finishPasskeyRegistrationAction(response),
+      finishPasskeyRegistrationAction(response, locale),
     );
     if (finishError || !result?.success) {
       setBusy(false);

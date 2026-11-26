@@ -89,16 +89,14 @@ export function UnsavedChangesDialog({
           <DialogTitle>{dict.unsavedTitle}</DialogTitle>
           <DialogDescription>{dict.unsavedDescription}</DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:flex-col sm:items-stretch">
+        {/* Staying is the dialog's own close button, Escape or a tap outside. */}
+        <DialogFooter className="gap-2 sm:flex-col-reverse sm:items-stretch">
           <Button type="button" disabled={isSaving} onClick={() => void saveAndLeave()} className="h-9 cursor-pointer gap-2">
             {isSaving && <Loader2 className="size-4 animate-spin" />}
             {dict.unsavedSave}
           </Button>
           <Button type="button" variant="outline" disabled={isSaving} onClick={guard.leave} className="h-9 cursor-pointer">
             {dict.unsavedDiscard}
-          </Button>
-          <Button type="button" variant="ghost" disabled={isSaving} onClick={guard.stay} className="h-9 cursor-pointer">
-            {dict.unsavedStay}
           </Button>
         </DialogFooter>
       </DialogContent>

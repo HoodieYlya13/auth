@@ -92,6 +92,10 @@ async function BackToAppLink({
   );
 }
 
+function BackToAppLinkSkeleton() {
+  return <div aria-hidden className="h-5 w-40 rounded bg-muted animate-pulse" />;
+}
+
 async function SignOutButtonWrapper({
   lang,
   searchParams,
@@ -153,6 +157,7 @@ async function PasskeysSectionWrapper({ lang, dict }: { lang: string; dict: Acco
         createdAt: c.createdAt.toISOString(),
         lastUsedAt: c.lastUsedAt?.toISOString() ?? null,
       }))}
+      locale={lang}
       dict={dict}
     />
   );
@@ -219,7 +224,8 @@ export default async function Page({
   return (
     <main className="min-h-screen min-h-svh bg-background px-4 py-12">
       <div className="mx-auto w-full max-w-2xl flex flex-col gap-6">
-        <Suspense fallback={null}>
+        {/* Most visits come from an app: its link's line is kept from the start, so nothing shifts when it streams in. */}
+        <Suspense fallback={<BackToAppLinkSkeleton />}>
           <BackToAppLink searchParams={searchParams} dict={t} />
         </Suspense>
         <header className="flex flex-wrap items-center justify-between gap-3">

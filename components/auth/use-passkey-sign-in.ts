@@ -13,6 +13,7 @@ import {
   type PasskeyBeginResult,
 } from "@/lib/actions/auth-actions";
 import { tryCatch } from "@/lib/utils";
+import { forgetSignInDraft } from "@/components/auth/sign-in-draft";
 
 export type PasskeySignInOutcome = "signed-in" | "cancelled" | "failed";
 
@@ -25,10 +26,11 @@ interface Destination {
   returnTo?: string;
 }
 
-/** What the form shows meanwhile: the passkey answered and the server checks it, or it didn't work out. */
+/** What the form shows meanwhile: the passkey answered and the server checks it, or it didn't work out; and whether the user gave up. */
 export interface PasskeyProgress {
   onVerifying: () => void;
   onFailed: () => void;
+  isCancelled: () => boolean;
 }
 
 /** Checks the passkey's answer and goes on to where the sign-in leads, saying so meanwhile. */
@@ -41,7 +43,10 @@ async function verifyAndContinue(
 ): Promise<boolean> {
   progress.onVerifying();
   const [error, result] = await tryCatch(finishPasskeyAuthenticationAction(flowId, assertion, locale, returnTo));
+  // Cancelled meanwhile: the form is back, and stays.
+  if (progress.isCancelled()) return false;
   if (!error && result.success && result.redirectTo) {
+    forgetSignInDraft();
     window.location.href = result.redirectTo;
     return true;
   }

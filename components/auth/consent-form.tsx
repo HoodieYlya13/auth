@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import {
   denyConsent,
   switchAccount,
 } from "@/lib/actions/oidc-actions";
+import { useStateResetOnBack } from "@/components/use-state-reset-on-back";
 
 interface ConsentDict {
   approve: string;
@@ -53,7 +53,7 @@ export function ConsentForm({
   approveLabel: string;
   dict: ConsentDict;
 }) {
-  const [busy, setBusy] = useState<ConsentChoice | null>(null);
+  const [busy, setBusy] = useStateResetOnBack<ConsentChoice | null>(null);
 
   const run = async (
     kind: ConsentChoice,

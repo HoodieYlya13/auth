@@ -125,7 +125,7 @@ export async function authenticateMagicLink(
   const link = `${ISSUER}/auth/verify?token=${encodeURIComponent(token)}`;
   const emailedLink = isAppSignIn(data.returnTo) ? undefined : link;
 
-  const [sendError] = await tryCatch(sendMagicLinkEmail(email, code, emailedLink));
+  const [sendError] = await tryCatch(sendMagicLinkEmail(email, code, emailedLink, data.locale));
   if (sendError) {
     console.error("Magic link send failed:", sendError);
     return { success: false, error: "Could not send the email. Try again." };

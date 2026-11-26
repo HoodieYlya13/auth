@@ -1,5 +1,5 @@
 import "server-only";
-import { Resend } from "resend";
+import { EMAIL_BUTTON_STYLE, EMAIL_STYLE, emailDictionary, sendEmail, type EmailDict } from "@/lib/email";
 import { getRedis } from "@/lib/redis";
 import { randomInt } from "node:crypto";
 import { randomToken, safeEqual, sha256Base64Url } from "@/lib/crypto";
@@ -86,61 +86,55 @@ export async function peekMagicLinkToken(
   return getRedis().get<MagicLinkPayload>(`${PREFIX}${token}`);
 }
 
-/** Without a link, the email has only the code (for an app's sign-in). */
+/** Without a link, the email has only the code (for an app's sign-in). In the language of the sign-in page. */
 export async function sendMagicLinkEmail(
   email: string,
   code: string,
-  link?: string,
+  link: string | undefined,
+  locale: string | undefined,
 ): Promise<void> {
   if (process.env.NODE_ENV !== "production")
     return console.log(`🔗 Magic Link: ${link ?? "(code only)"}\n🔢 Code: ${code}`);
 
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM_MAGIC_LINK ?? "Auth <onboarding@resend.dev>",
+  const t = await emailDictionary(locale);
+  await sendEmail({
     to: email,
-    subject: link ? "Your sign-in link" : `Your sign-in code: ${code}`,
-    text: link ? magicLinkText(link, code) : magicCodeText(code),
-    html: link ? magicLinkHtml(link, code) : magicCodeHtml(code),
+    subject: link ? t.signInLinkSubject : t.signInCodeSubject.replace("{code}", code),
+    text: link ? magicLinkText(t, link, code) : magicCodeText(t, code),
+    html: link ? magicLinkHtml(t, link, code) : magicCodeHtml(t, code),
   });
-  if (error) throw new Error(`Failed to send magic link: ${error.message}`);
 }
 
-const IGNORE_NOTE = "If you didn't request this, you can ignore this email.";
-
-function magicLinkText(link: string, code: string): string {
-  return `Click to sign in (valid for 15 minutes):\n\n${link}\n\nOr enter this code on the sign-in page: ${code}\n\n${IGNORE_NOTE}`;
+function magicLinkText(t: EmailDict, link: string, code: string): string {
+  return `${t.signInLinkTextIntro}\n\n${link}\n\n${t.signInOrCode} ${code}\n\n${t.ignoreNote}`;
 }
 
-function magicCodeText(code: string): string {
-  return `Enter this code on the sign-in page (valid for 15 minutes):\n\n${code}\n\n${IGNORE_NOTE}`;
+function magicCodeText(t: EmailDict, code: string): string {
+  return `${t.signInCodeIntro}\n\n${code}\n\n${t.ignoreNote}`;
 }
-
-const EMAIL_STYLE =
-  "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#0a0a0a";
 
 function codeHtml(code: string): string {
   return `<p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:8px;margin:0">${code}</p>`;
 }
 
-function magicLinkHtml(link: string, code: string): string {
+function magicLinkHtml(t: EmailDict, link: string, code: string): string {
   return `
   <div style="${EMAIL_STYLE}">
-    <h1 style="font-size:18px;margin:0 0 8px">Sign in</h1>
-    <p style="font-size:14px;color:#525252;margin:0 0 24px">Click the button below to sign in. This link is valid for 15 minutes and can be used once.</p>
-    <a href="${link}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:8px">Sign in</a>
-    <p style="font-size:14px;color:#525252;margin:28px 0 8px">Or enter this code on the sign-in page:</p>
+    <h1 style="font-size:18px;margin:0 0 8px">${t.signInTitle}</h1>
+    <p style="font-size:14px;color:#525252;margin:0 0 24px">${t.signInLinkIntro}</p>
+    <a href="${link}" style="${EMAIL_BUTTON_STYLE}">${t.signInButton}</a>
+    <p style="font-size:14px;color:#525252;margin:28px 0 8px">${t.signInOrCode}</p>
     ${codeHtml(code)}
     <p style="font-size:12px;color:#a3a3a3;margin:24px 0 0;word-break:break-all">${link}</p>
   </div>`;
 }
 
-function magicCodeHtml(code: string): string {
+function magicCodeHtml(t: EmailDict, code: string): string {
   return `
   <div style="${EMAIL_STYLE}">
-    <h1 style="font-size:18px;margin:0 0 8px">Sign in</h1>
-    <p style="font-size:14px;color:#525252;margin:0 0 24px">Enter this code on the sign-in page. It is valid for 15 minutes and can be used once.</p>
+    <h1 style="font-size:18px;margin:0 0 8px">${t.signInTitle}</h1>
+    <p style="font-size:14px;color:#525252;margin:0 0 24px">${t.signInCodeIntro}</p>
     ${codeHtml(code)}
-    <p style="font-size:12px;color:#a3a3a3;margin:24px 0 0">${IGNORE_NOTE}</p>
+    <p style="font-size:12px;color:#a3a3a3;margin:24px 0 0">${t.ignoreNote}</p>
   </div>`;
 }

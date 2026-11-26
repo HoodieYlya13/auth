@@ -50,7 +50,7 @@ async function PromptSection({
   // Added one meanwhile (another tab, the Back button): nothing to offer.
   if (await hasPasskey(user.id)) redirect(next);
 
-  return <PasskeyPrompt next={next} dict={dict.passkeyPrompt} />;
+  return <PasskeyPrompt next={next} locale={lang} dict={dict.passkeyPrompt} />;
 }
 
 export default async function Page({

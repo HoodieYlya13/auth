@@ -43,9 +43,11 @@ type NameDialogState =
 
 export function PasskeysSection({
   passkeys,
+  locale,
   dict,
 }: {
   passkeys: Passkey[];
+  locale: string;
   dict: AccountDict;
 }) {
   const router = useRouter();
@@ -106,7 +108,7 @@ export function PasskeysSection({
 
     setSaving(true);
     const [error, result] = await tryCatch(
-      finishPasskeyRegistrationAction(nameDialog.response, label || undefined),
+      finishPasskeyRegistrationAction(nameDialog.response, locale, label || undefined),
     );
     setSaving(false);
     if (error || !result || !result.success) {
@@ -126,7 +128,7 @@ export function PasskeysSection({
 
   const handleDelete = (id: string) => {
     if (!window.confirm(dict.removeConfirm)) return;
-    void removal.remove(id, () => deletePasskey(id));
+    void removal.remove(id, () => deletePasskey(id, locale));
   };
 
   const isAdd = nameDialog?.mode === "add";

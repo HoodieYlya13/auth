@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { completeRegistration } from "@/lib/actions/account-actions";
 import { USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH } from "@/lib/username";
+import { useStateResetOnBack } from "@/components/use-state-reset-on-back";
 
 interface RegisterDict {
   usernameLabel: string;
@@ -38,7 +39,7 @@ export function CompleteRegistrationForm({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthday, setBirthday] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useStateResetOnBack(false);
 
   const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
