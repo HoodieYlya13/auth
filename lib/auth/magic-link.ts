@@ -1,5 +1,5 @@
 import "server-only";
-import { EMAIL_BUTTON_STYLE, EMAIL_STYLE, emailCodeHtml, emailDictionary, sendEmail, type EmailDict } from "@/lib/email";
+import { EMAIL_BUTTON_STYLE, EMAIL_STYLE, emailCodeHtml, emailDictionary, escapeHtml, sendEmail, type EmailDict } from "@/lib/email";
 import { getRedis } from "@/lib/redis";
 import { randomInt } from "node:crypto";
 import { randomToken, safeEqual, sha256Base64Url } from "@/lib/crypto";
@@ -86,31 +86,34 @@ export async function peekMagicLinkToken(
   return getRedis().get<MagicLinkPayload>(`${PREFIX}${token}`);
 }
 
-/** Without a link, the email has only the code (for an app's sign-in). In the language of the sign-in page. */
+/** Without a link, the email has only the code (for an app's sign-in, named in it). In the language of the sign-in page. */
 export async function sendMagicLinkEmail(
   email: string,
   code: string,
   link: string | undefined,
-  locale: string | undefined,
+  signIn: { locale: string | undefined; appName: string | null },
 ): Promise<void> {
   if (process.env.NODE_ENV !== "production")
     return console.log(`🔗 Magic Link: ${link ?? "(code only)"}\n🔢 Code: ${code}`);
 
-  const t = await emailDictionary(locale);
-  await sendEmail({
-    to: email,
-    subject: link ? t.signInLinkSubject : t.signInCodeSubject.replace("{code}", code),
-    text: link ? magicLinkText(t, link, code) : magicCodeText(t, code),
-    html: link ? magicLinkHtml(t, link, code) : magicCodeHtml(t, code),
-  });
+  const t = await emailDictionary(signIn.locale);
+  if (link) {
+    await sendEmail({ to: email, subject: t.signInLinkSubject.replace("{code}", code), text: magicLinkText(t, link, code), html: magicLinkHtml(t, link, code) });
+    return;
+  }
+  const intro = signIn.appName ? t.signInCodeForAppIntro.replace("{app}", signIn.appName) : t.signInCodeIntro;
+  const subject = signIn.appName
+    ? t.signInCodeForAppSubject.replace("{app}", signIn.appName).replace("{code}", code)
+    : t.signInCodeSubject.replace("{code}", code);
+  await sendEmail({ to: email, subject, text: magicCodeText(t, intro, code), html: magicCodeHtml(t, intro, code) });
 }
 
 function magicLinkText(t: EmailDict, link: string, code: string): string {
   return `${t.signInLinkTextIntro}\n\n${link}\n\n${t.signInOrCode} ${code}\n\n${t.ignoreNote}`;
 }
 
-function magicCodeText(t: EmailDict, code: string): string {
-  return `${t.signInCodeIntro}\n\n${code}\n\n${t.ignoreNote}`;
+function magicCodeText(t: EmailDict, intro: string, code: string): string {
+  return `${intro}\n\n${code}\n\n${t.ignoreNote}`;
 }
 
 function magicLinkHtml(t: EmailDict, link: string, code: string): string {
@@ -125,11 +128,11 @@ function magicLinkHtml(t: EmailDict, link: string, code: string): string {
   </div>`;
 }
 
-function magicCodeHtml(t: EmailDict, code: string): string {
+function magicCodeHtml(t: EmailDict, intro: string, code: string): string {
   return `
   <div style="${EMAIL_STYLE}">
     <h1 style="font-size:18px;margin:0 0 8px">${t.signInTitle}</h1>
-    <p style="font-size:14px;color:#525252;margin:0 0 24px">${t.signInCodeIntro}</p>
+    <p style="font-size:14px;color:#525252;margin:0 0 24px">${escapeHtml(intro)}</p>
     ${emailCodeHtml(code)}
     <p style="font-size:12px;color:#a3a3a3;margin:24px 0 0">${t.ignoreNote}</p>
   </div>`;

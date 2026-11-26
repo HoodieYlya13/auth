@@ -61,6 +61,7 @@ carries their identity and **per-app roles**.
 | UserInfo | `/api/oidc/userinfo` |
 | End session | `/api/oidc/logout` |
 | End session from an app's server (confidential clients, POST with a refresh token) | `/api/oidc/end-session` |
+| Accounts deleted lately, for an app to delete their data (confidential clients, POST) | `/api/oidc/deleted-accounts` |
 
 ## Setup
 

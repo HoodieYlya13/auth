@@ -22,10 +22,9 @@ export async function finishMagicSignIn(
     create: { email: payload.email, emailVerifiedAt: new Date() },
   });
 
-  await createSession(user.id, userAgent);
-
   const locale = payload.locale && hasLocale(payload.locale) ? payload.locale : DEFAULT_LOCALE;
   const returnTo = safeReturnTo(payload.returnTo);
+  await createSession(user.id, { userAgent, locale, returnTo });
 
   if (!user.username) {
     return completeRegistrationPath(locale, returnTo);

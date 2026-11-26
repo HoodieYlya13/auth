@@ -4,40 +4,40 @@ import { getRedis } from "@/lib/redis";
 import { safeEqual, sha256Base64Url } from "@/lib/crypto";
 
 const CODE_TTL_SECONDS = 15 * 60;
-/** Proving it's you opens the change for this long, on this sign-in only. */
+/** Proving it's you opens a sensitive change (email, deletion) for this long, on this sign-in only. */
 const VERIFIED_TTL_SECONDS = 10 * 60;
 const CODE_MAX_TRIES = 5;
 
-/** Which address a code went to: the current one (proving it's you) or the new one (proving it's theirs). */
-export type EmailChangeStep = "current" | "new";
+/** What a code proves: that it's you (sent to your address), or that a new address is yours. */
+export type AccountCodePurpose = "identity" | "new-email";
 
 interface StoredCode {
-  step: EmailChangeStep;
+  purpose: AccountCodePurpose;
   email: string;
-  /** sha256 of the code: a leaked Redis dump doesn't hand out email changes. */
+  /** sha256 of the code: a leaked Redis dump doesn't hand out account changes. */
   codeHash: string;
 }
 
-const codeKey = (userId: string) => `ec:code:${userId}`;
-const triesKey = (userId: string) => `ec:tries:${userId}`;
-const verifiedKey = (sessionId: string) => `ec:verified:${sessionId}`;
+const codeKey = (userId: string) => `acct:code:${userId}`;
+const triesKey = (userId: string) => `acct:tries:${userId}`;
+const verifiedKey = (sessionId: string) => `acct:verified:${sessionId}`;
 
-/** A new 6-digit code for this step, replacing any earlier one. */
-export async function createEmailChangeCode(userId: string, step: EmailChangeStep, email: string): Promise<string> {
+/** A new 6-digit code for this purpose, replacing any earlier one. */
+export async function createAccountCode(userId: string, purpose: AccountCodePurpose, email: string): Promise<string> {
   const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
   const redis = getRedis();
   await Promise.all([
-    redis.set(codeKey(userId), { step, email, codeHash: sha256Base64Url(code) } satisfies StoredCode, { ex: CODE_TTL_SECONDS }),
+    redis.set(codeKey(userId), { purpose, email, codeHash: sha256Base64Url(code) } satisfies StoredCode, { ex: CODE_TTL_SECONDS }),
     redis.del(triesKey(userId)),
   ]);
   return code;
 }
 
-/** The address the code was sent to when it's right for this step; single use, and five wrong tries end it. */
-export async function consumeEmailChangeCode(userId: string, step: EmailChangeStep, code: string): Promise<string | null> {
+/** The address the code was sent to when it's right for this purpose; single use, and five wrong tries end it. */
+export async function consumeAccountCode(userId: string, purpose: AccountCodePurpose, code: string): Promise<string | null> {
   const redis = getRedis();
   const saved = await redis.get<StoredCode>(codeKey(userId));
-  if (!saved || saved.step !== step) return null;
+  if (!saved || saved.purpose !== purpose) return null;
   if (!safeEqual(sha256Base64Url(code), saved.codeHash)) {
     const tries = await redis.incr(triesKey(userId));
     if (tries === 1) await redis.expire(triesKey(userId), CODE_TTL_SECONDS);

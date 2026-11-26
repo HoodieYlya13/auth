@@ -27,7 +27,7 @@ async function FlowSection({ lang, dict }: { lang: string; dict: Dict }) {
       <p className="-mt-4 mb-6 text-center text-xs text-muted-foreground break-all">
         {dict.emailChange.current.replace("{email}", user.email)}
       </p>
-      <EmailChangeFlow currentEmail={user.email} hasPasskey={await hasPasskey(user.id)} locale={lang} dict={dict.emailChange} />
+      <EmailChangeFlow currentEmail={user.email} hasPasskey={await hasPasskey(user.id)} locale={lang} dict={dict.emailChange} identityDict={dict.confirmIdentity} />
     </>
   );
 }

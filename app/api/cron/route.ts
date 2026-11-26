@@ -3,9 +3,20 @@ import { prisma } from "@/lib/db";
 import { getRedisOrNull } from "@/lib/redis";
 import { tryCatch } from "@/lib/utils";
 import { safeEqual } from "@/lib/crypto";
+import { pruneTombstones, purgeDueAccounts } from "@/lib/auth/account-deletion";
 
 function reason(error: Error): string {
   return error.message || "Unknown error";
+}
+
+/** Accounts whose grace period is over go, and tombstones every app has had time to read are dropped. */
+async function purgeDeletedAccounts(): Promise<string> {
+  const [error, purged] = await tryCatch(async () => {
+    const count = await purgeDueAccounts();
+    await pruneTombstones();
+    return count;
+  });
+  return error ? `Account deletions failed: ${reason(error)}` : `Deleted ${purged} accounts whose grace period ended.`;
 }
 
 export async function GET(req: NextRequest) {
@@ -24,6 +35,7 @@ export async function GET(req: NextRequest) {
     postgres?: string;
     redis?: string;
     cleanup?: string;
+    deletions?: string;
   } = {};
 
   const redis = getRedisOrNull();
@@ -63,6 +75,8 @@ export async function GET(req: NextRequest) {
     const [users, sessions, refreshTokens] = counts;
     results.cleanup = `Wiped ${users.count} unconfirmed users, ${sessions.count} expired sessions, ${refreshTokens.count} expired refresh tokens.`;
   }
+
+  results.deletions = await purgeDeletedAccounts();
 
   return NextResponse.json({
     success: true,

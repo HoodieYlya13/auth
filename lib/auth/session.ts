@@ -7,6 +7,7 @@ import {
   notifyEndedSession,
 } from "@/lib/oidc/backchannel-logout";
 import type { User } from "@/lib/generated/prisma/client";
+import { noticeSignIn, type SignInContext } from "@/lib/auth/sign-in-notices";
 
 const COOKIE = "auth_session";
 const TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
@@ -23,14 +24,15 @@ function cookieOptions(expires: Date) {
 
 export async function createSession(
   userId: string,
-  userAgent?: string,
+  signIn: SignInContext,
 ): Promise<void> {
   const expiresAt = new Date(Date.now() + TTL_SECONDS * 1000);
   const session = await prisma.session.create({
-    data: { userId, expiresAt, userAgent },
+    data: { userId, expiresAt, userAgent: signIn.userAgent },
   });
   const store = await cookies();
   store.set(COOKIE, session.id, cookieOptions(expiresAt));
+  await noticeSignIn(userId, signIn);
 }
 
 export async function getSession(): Promise<{
@@ -95,6 +97,14 @@ export async function destroySession(): Promise<void> {
 /** A cookie whose session is gone (expired, revoked): dropped, nothing to end. */
 export async function forgetStaleSessionCookie(): Promise<void> {
   (await cookies()).delete(COOKIE);
+}
+
+/** Every sign-in of the account ends, here and in its apps, this device's included. */
+export async function signOutEverywhere(userId: string): Promise<void> {
+  const sessions = await prisma.session.findMany({ where: { userId }, select: { id: true } });
+  await Promise.all(sessions.map((session) => endSession(session.id, userId)));
+  (await cookies()).delete(COOKIE);
+  await forgetPasskeyReminder();
 }
 
 export async function revokeSession(

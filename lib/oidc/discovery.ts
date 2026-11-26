@@ -10,6 +10,7 @@ const endpoints = {
   jwks: `${ISSUER}/.well-known/jwks.json`,
   endSession: `${ISSUER}/api/oidc/logout`,
   serverEndSession: `${ISSUER}/api/oidc/end-session`,
+  deletedAccounts: `${ISSUER}/api/oidc/deleted-accounts`,
 } as const;
 
 export const SUPPORTED_SCOPES = [
@@ -31,6 +32,8 @@ export function getDiscoveryDocument() {
     end_session_endpoint: endpoints.endSession,
     // Not in the spec: a confidential app ends the sign-in behind its refresh token from its server, without a redirect.
     server_end_session_endpoint: endpoints.serverEndSession,
+    // Not in the spec either: the app's accounts deleted lately, for it to delete their data.
+    deleted_accounts_endpoint: endpoints.deletedAccounts,
     backchannel_logout_supported: true,
     backchannel_logout_session_supported: true,
     response_types_supported: ["code"],

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Trash2 } from "lucide-react";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { getSession } from "@/lib/auth/session";
 import { isAdmin } from "@/lib/oidc/tokens";
@@ -12,6 +12,7 @@ import { PasskeysSection } from "@/components/account/passkeys-section";
 import { AppsSection } from "@/components/account/apps-section";
 import { SessionsSection } from "@/components/account/sessions-section";
 import { SignOutButton } from "@/components/account/sign-out-button";
+import { Section } from "@/components/account/section";
 import Link from "next/link";
 import { Suspense } from "react";
 import type { AccountDict } from "@/components/account/account-dict";
@@ -268,6 +269,16 @@ export default async function Page({
         <Suspense fallback={<SectionSkeleton title={t.sessionsTitle} />}>
           <SessionsSectionWrapper lang={lang} dict={t} />
         </Suspense>
+
+        <Section title={dict.deleteAccount.sectionTitle} description={dict.deleteAccount.sectionDescription}>
+          <Link
+            href={`/${lang}/account/delete`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium bg-destructive/10 text-destructive hover:bg-destructive/20"
+          >
+            <Trash2 className="size-4" />
+            {dict.deleteAccount.link}
+          </Link>
+        </Section>
       </div>
     </main>
   );

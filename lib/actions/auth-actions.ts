@@ -20,6 +20,7 @@ import {
   safeReturnTo,
 } from "@/lib/redirect";
 import { prisma } from "@/lib/db";
+import { findSigningInApp } from "@/lib/oidc/clients";
 import { createSession } from "@/lib/auth/session";
 import {
   consumeMagicCode,
@@ -125,7 +126,8 @@ export async function authenticateMagicLink(
   const link = `${ISSUER}/auth/verify?token=${encodeURIComponent(token)}`;
   const emailedLink = isAppSignIn(data.returnTo) ? undefined : link;
 
-  const [sendError] = await tryCatch(sendMagicLinkEmail(email, code, emailedLink, data.locale));
+  const app = emailedLink ? null : await findSigningInApp(data.returnTo);
+  const [sendError] = await tryCatch(sendMagicLinkEmail(email, code, emailedLink, { locale: data.locale, appName: app?.name ?? null }));
   if (sendError) {
     console.error("Magic link send failed:", sendError);
     return { success: false, error: "Could not send the email. Try again." };
@@ -236,9 +238,9 @@ export async function finishPasskeyAuthenticationAction(
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { success: false, error: "Account not found." };
 
-  await createSession(userId, (await headers()).get("user-agent") ?? undefined);
-
   const safe = safeReturnTo(returnTo);
+  await createSession(userId, { userAgent: (await headers()).get("user-agent") ?? undefined, locale, returnTo: safe });
+
   let redirectTo: string;
   if (!user.username)
     redirectTo = completeRegistrationPath(locale, safe);

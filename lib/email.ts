@@ -13,6 +13,19 @@ export function emailCodeHtml(code: string): string {
   return `<p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:8px;margin:0">${code}</p>`;
 }
 
+/** An email that tells something: a title, a few paragraphs, maybe a button. Its text and HTML versions. */
+export function noticeEmail(notice: { title: string; paragraphs: string[]; button?: { label: string; href: string } }): Pick<Email, "text" | "html"> {
+  const { title, paragraphs, button } = notice;
+  const text = [title, ...paragraphs, ...(button ? [button.href] : [])].join("\n\n");
+  const html = `
+  <div style="${EMAIL_STYLE}">
+    <h1 style="font-size:18px;margin:0 0 8px">${escapeHtml(title)}</h1>
+    ${paragraphs.map((paragraph) => `<p style="font-size:14px;color:#525252;margin:0 0 24px">${escapeHtml(paragraph)}</p>`).join("\n    ")}
+    ${button ? `<a href="${button.href}" style="${EMAIL_BUTTON_STYLE}">${escapeHtml(button.label)}</a>` : ""}
+  </div>`;
+  return { text, html };
+}
+
 export interface Email {
   to: string;
   subject: string;
