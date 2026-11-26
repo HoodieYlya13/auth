@@ -39,7 +39,7 @@ export async function sendEmail(email: Email): Promise<void> {
 
   const resend = new Resend(process.env.RESEND_API_KEY);
   const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM_MAGIC_LINK ?? "Auth <onboarding@resend.dev>",
+    from: process.env.EMAIL_FROM ?? "Auth <onboarding@resend.dev>",
     ...email,
   });
   if (error) throw new Error(`Failed to send "${email.subject}": ${error.message}`);
