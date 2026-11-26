@@ -14,7 +14,6 @@ import {
 } from "@/lib/ratelimit";
 import { isCaptchaEnabled, verifyTurnstileToken } from "@/lib/turnstile";
 import { tryCatch, tryCatchSync } from "@/lib/utils";
-import { logReturnTo } from "@/lib/return-to-debug";
 import {
   completeRegistrationPath,
   isAppSignIn,
@@ -256,7 +255,7 @@ export async function finishPasskeyAuthenticationAction(
   const locale = destination?.locale ?? DEFAULT_LOCALE;
   const pageReturnTo = await returnToOfSigningInPage();
   const returnTo = destination?.returnTo ?? pageReturnTo;
-  await logReturnTo("passkey-finish", { hasDestination: !!destination, keptReturnTo: !!destination?.returnTo, pageReturnTo: !!pageReturnTo });
+  if (!destination) console.warn("Passkey sign-in finished without its stored destination: using the sign-in page's return_to.");
   const [error, userId] = await tryCatch(
     finishPasskeyAuthentication(flowId, response),
   );
@@ -276,6 +275,5 @@ export async function finishPasskeyAuthenticationAction(
     redirectTo = completeRegistrationPath(locale, safe);
   else redirectTo = safe ?? `/${locale}/account`;
 
-  await logReturnTo("passkey-result", { redirectPath: redirectTo.split("?")[0], hasUsername: !!user.username });
   return { success: true, redirectTo };
 }

@@ -1,6 +1,4 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
-import { logReturnTo } from "@/lib/return-to-debug";
 import { ArrowLeft, ShieldCheck, Trash2 } from "lucide-react";
 import { getDictionary, hasLocale } from "@/lib/dictionaries/dictionaries";
 import { getSession } from "@/lib/auth/session";
@@ -34,8 +32,6 @@ function SectionSkeleton({ title }: { title: string }) {
 }
 
 async function UserEmailSection({ lang, changeLabel }: { lang: string; changeLabel: string }) {
-  const referer = (await headers()).get("referer");
-  await logReturnTo("account-page", { from: referer ? new URL(referer).pathname : "none" });
   const session = await getSession();
   if (!session) return null;
   return (

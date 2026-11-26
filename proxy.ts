@@ -46,7 +46,7 @@ export function proxy(req: NextRequest) {
       url.searchParams.set("lang", locale);
       const safe = safeReturnTo(req.nextUrl.searchParams.get("return_to"));
       if (safe) url.searchParams.set("return_to", safe);
-      return traced(req, url);
+      return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
@@ -56,7 +56,7 @@ export function proxy(req: NextRequest) {
     url.pathname = `/${locale}`;
     url.search = "";
     url.searchParams.set("return_to", pathname + search);
-    return traced(req, url);
+    return NextResponse.redirect(url);
   }
 
   // Once a day, the first page loaded checks for a passkey on the way (see
@@ -69,7 +69,7 @@ export function proxy(req: NextRequest) {
     const url = new URL("/api/auth/passkey-reminder", req.nextUrl.origin);
     url.searchParams.set("lang", locale);
     url.searchParams.set("return_to", pathname + search);
-    return traced(req, url);
+    return NextResponse.redirect(url);
   }
 
   if (isPageLoad && rest === PASSKEY_PROMPT) return passkeyPromptSeen();
@@ -86,10 +86,3 @@ function passkeyPromptSeen(): NextResponse {
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|.well-known|favicon.ico).*)"],
 };
-
-/** Temporary: a page-load redirect and where it leads, paths only (see lib/return-to-debug). */
-function traced(req: NextRequest, url: URL): NextResponse {
-  const device = /iPhone|iPad/.test(req.headers.get("user-agent") ?? "") ? "iOS" : "other";
-  console.warn(`[return-to] proxy ${device} ${req.method} ${req.nextUrl.pathname} -> ${url.pathname} rsc=${req.headers.has("rsc")}`);
-  return NextResponse.redirect(url);
-}

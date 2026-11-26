@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { logReturnTo } from "@/lib/return-to-debug";
 import {
   getClient,
   grantableScopes,
@@ -185,7 +184,6 @@ export async function GET(req: NextRequest) {
   })();
 
   const session = await getSession();
-  await logReturnTo("authorize", { hasSession: !!session, isRsc: !!req.headers.get("rsc") });
   if (!session) {
     if (isSilent) return redirectError("login_required");
     return signInRedirect(origin, locale, interactiveReturn);

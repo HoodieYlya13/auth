@@ -6,7 +6,6 @@ import { hasPasskey } from "@/lib/auth/passkey-prompt";
 import { PasskeyPrompt } from "@/components/auth/passkey-prompt";
 import { completeRegistrationPath, safeReturnTo } from "@/lib/redirect";
 import { findReturnApp } from "@/lib/oidc/clients";
-import { logReturnTo } from "@/lib/return-to-debug";
 import { Suspense } from "react";
 
 function PromptSkeleton() {
@@ -46,7 +45,6 @@ async function PromptSection({
   const appHref =
     app && (appPath ? new URL(appPath, app.homeUrl).href : app.homeUrl);
   const next = appHref ?? returnTo ?? `/${lang}/account`;
-  await logReturnTo("passkey-prompt", { hasApp: !!appHref, hasReturnTo: !!returnTo });
 
   if (!user.username) redirect(completeRegistrationPath(lang, returnTo));
   // Added one meanwhile (another tab, the Back button): nothing to offer.
