@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Section } from "@/components/account/section";
 import { AvatarPicker } from "@/components/account/avatar-picker";
 import type { AccountDict } from "@/components/account/account-dict";
 import { tryCatch } from "@/lib/utils";
+import { UnsavedChangesDialog, useLeaveGuard } from "@/components/account/unsaved-changes";
 
 interface ProfileValues {
   username: string;
@@ -18,6 +19,9 @@ interface ProfileValues {
   lastName: string;
   birthday: string;
 }
+
+const isSameProfile = (a: ProfileValues, b: ProfileValues) =>
+  a.username === b.username && a.firstName === b.firstName && a.lastName === b.lastName && a.birthday === b.birthday;
 
 export function ProfileSection({
   initial,
@@ -29,25 +33,31 @@ export function ProfileSection({
   dict: AccountDict;
 }) {
   const [values, setValues] = useState<ProfileValues>(initial);
-  const savedRef = useRef<ProfileValues>(initial);
+  const [saved, setSaved] = useState<ProfileValues>(initial);
   const [isPending, startTransition] = useTransition();
+  const guard = useLeaveGuard(!isSameProfile(values, saved));
 
   const set = (key: keyof ProfileValues) => (v: string) =>
     setValues((prev) => ({ ...prev, [key]: v }));
 
+  /** Shown as saved at once; back to the last saved profile if the server refuses. */
+  async function save(): Promise<boolean> {
+    const previous = saved;
+    const next = values;
+    setSaved(next);
+    toast.success(dict.profileSaved);
+    const [error, result] = await tryCatch(updateProfile(next));
+    if (!error && result?.success) return true;
+    setSaved(previous);
+    setValues(previous);
+    toast.error(result?.error || dict.profileError);
+    return false;
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const snapshot = savedRef.current;
-    const next = values;
-    savedRef.current = next;
-    toast.success(dict.profileSaved);
     startTransition(async () => {
-      const [error, result] = await tryCatch(updateProfile(next));
-      if (error || !result || !result.success) {
-        savedRef.current = snapshot;
-        setValues(snapshot);
-        toast.error(result?.error || dict.profileError);
-      }
+      await save();
     });
   };
 
@@ -121,6 +131,7 @@ export function ProfileSection({
           </Button>
         </div>
       </form>
+      <UnsavedChangesDialog guard={guard} save={save} dict={dict} />
     </Section>
   );
 }

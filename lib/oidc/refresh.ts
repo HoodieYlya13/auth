@@ -91,3 +91,17 @@ export async function rotateRefreshToken(
   }
   return successor();
 }
+
+/** The sign-in behind one of a client's live refresh tokens, to end it; null for an unknown, revoked or expired token. */
+export async function sessionOfRefreshToken(
+  presented: string,
+  clientDbId: string,
+): Promise<{ sessionId: string; userId: string } | null> {
+  const record = await prisma.refreshToken.findUnique({
+    where: { tokenHash: sha256Base64Url(presented) },
+    select: { clientId: true, userId: true, sessionId: true, revoked: true, expiresAt: true },
+  });
+  if (!record || record.clientId !== clientDbId || record.revoked || record.expiresAt < new Date()) return null;
+  if (!record.sessionId) return null;
+  return { sessionId: record.sessionId, userId: record.userId };
+}

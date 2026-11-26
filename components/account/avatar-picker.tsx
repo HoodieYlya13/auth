@@ -111,7 +111,7 @@ export function AvatarPicker({
             {fallback}
           </span>
         )}
-        <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+        <span className={`absolute inset-0 flex items-center justify-center bg-black/40 text-white transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 ${isPending ? "opacity-100" : "opacity-0"}`}>
           {isPending ? (
             <Loader2 className="size-5 animate-spin" />
           ) : (

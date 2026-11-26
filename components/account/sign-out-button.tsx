@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/actions/account-actions";
 
@@ -20,6 +20,7 @@ export function SignOutButton({
       type="button"
       variant="outline"
       disabled={busy}
+      aria-busy={busy}
       onClick={() => {
         setBusy(true);
         // Redirects on success; a network error gives the button back.
@@ -27,7 +28,7 @@ export function SignOutButton({
       }}
       className="h-9 cursor-pointer gap-1.5"
     >
-      <LogOut className="size-4" />
+      {busy ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
       {label}
     </Button>
   );

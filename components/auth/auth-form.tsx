@@ -105,7 +105,7 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
 
   const signInWithPasskey = usePasskeySignIn({ locale, returnTo }, dict);
   // This device's passkeys show in the email field's autofill: picking one signs in.
-  usePasskeyAutofill({ locale, returnTo });
+  usePasskeyAutofill({ locale, returnTo }, dict);
   // A code was asked for an account that has a passkey: offered first (see PasskeyOffer).
   const [passkeyOffer, setPasskeyOffer] = useState<{ email: string; prompt: PasskeyBeginResult } | null>(null);
 

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getClient, verifyClientSecret } from "@/lib/oidc/clients";
+import { readClientCredentials } from "@/lib/oidc/client-credentials";
 import { preflight, withCors } from "@/lib/oidc/cors";
 import { consumeAuthCode, verifyPkce } from "@/lib/oidc/codes";
 import { issueRefreshToken, rotateRefreshToken } from "@/lib/oidc/refresh";
@@ -14,27 +15,6 @@ function tokenError(error: string, status = 400) {
     { error },
     { status, headers: { "Cache-Control": "no-store" } },
   );
-}
-
-function readClientCredentials(
-  req: NextRequest,
-  form: FormData,
-): { clientId?: string; clientSecret?: string } {
-  const header = req.headers.get("authorization");
-  if (header?.startsWith("Basic ")) {
-    const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
-    const idx = decoded.indexOf(":");
-    if (idx !== -1) {
-      return {
-        clientId: decodeURIComponent(decoded.slice(0, idx)),
-        clientSecret: decodeURIComponent(decoded.slice(idx + 1)),
-      };
-    }
-  }
-  return {
-    clientId: (form.get("client_id") as string) || undefined,
-    clientSecret: (form.get("client_secret") as string) || undefined,
-  };
 }
 
 async function buildTokenResponse(

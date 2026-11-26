@@ -64,8 +64,9 @@ export function usePasskeySignIn(destination: Destination, messages: PasskeyMess
  * autocomplete ends with "webauthn"): picking one signs in, and a device
  * without any shows nothing, never another device's QR code.
  */
-export function usePasskeyAutofill(destination: Destination) {
+export function usePasskeyAutofill(destination: Destination, messages: PasskeyMessages) {
   const { locale, returnTo } = destination;
+  const { toastInitiatingPasskey, toastSuccessPasskey, toastErrorPasskey } = messages;
 
   useEffect(() => {
     void (async () => {
@@ -75,8 +76,15 @@ export function usePasskeyAutofill(destination: Destination) {
       // Ends with an error when a passkey button opens its own prompt instead: nothing to do then.
       const [error, assertion] = await tryCatch(startAuthentication({ optionsJSON: started.options, useBrowserAutofill: true }));
       if (error || !assertion) return;
-      const outcome = await finishSignIn(started.flowId, assertion, { locale, returnTo });
-      if ("redirectTo" in outcome) window.location.href = outcome.redirectTo;
+      // Picked from the autofill: the server checks it now, which can take a moment.
+      const toastId = toast.loading(toastInitiatingPasskey);
+      const [finishError, outcome] = await tryCatch(finishSignIn(started.flowId, assertion, { locale, returnTo }));
+      if (!finishError && "redirectTo" in outcome) {
+        toast.success(toastSuccessPasskey, { id: toastId });
+        window.location.href = outcome.redirectTo;
+        return;
+      }
+      toast.error((outcome && "error" in outcome && outcome.error) || toastErrorPasskey, { id: toastId });
     })();
-  }, [locale, returnTo]);
+  }, [locale, returnTo, toastInitiatingPasskey, toastSuccessPasskey, toastErrorPasskey]);
 }

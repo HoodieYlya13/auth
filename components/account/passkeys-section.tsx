@@ -26,6 +26,7 @@ import {
 import type { AccountDict } from "@/components/account/account-dict";
 import { LocalDate } from "@/components/local-date";
 import { tryCatch } from "@/lib/utils";
+import { useOptimisticRemoval } from "@/components/account/use-optimistic-removal";
 
 interface Passkey {
   id: string;
@@ -120,13 +121,12 @@ export function PasskeysSection({
     router.refresh();
   };
 
-  const handleDelete = async (id: string) => {
+  const removal = useOptimisticRemoval({ removed: dict.removed, failed: dict.passkeyError });
+  const shownPasskeys = optimisticPasskeys.filter((pk) => removal.isShown(pk.id));
+
+  const handleDelete = (id: string) => {
     if (!window.confirm(dict.removeConfirm)) return;
-    const result = await deletePasskey(id);
-    if (result.success) {
-      toast.success(dict.removed);
-      router.refresh();
-    } else toast.error(result.error || dict.passkeyError);
+    void removal.remove(id, () => deletePasskey(id));
   };
 
   const isAdd = nameDialog?.mode === "add";
@@ -152,11 +152,11 @@ export function PasskeysSection({
         </Button>
       }
     >
-      {optimisticPasskeys.length === 0 ? (
+      {shownPasskeys.length === 0 ? (
         <p className="text-sm text-muted-foreground">{dict.noPasskeys}</p>
       ) : (
         <ul className="flex flex-col divide-y divide-border">
-          {optimisticPasskeys.map((pk) => (
+          {shownPasskeys.map((pk) => (
             <li key={pk.id} className="flex items-center gap-3 py-3">
               <KeyRound className="size-4 text-muted-foreground shrink-0" />
               <div className="min-w-0 flex-1">
@@ -199,7 +199,7 @@ export function PasskeysSection({
           ))}
         </ul>
       )}
-      {optimisticPasskeys.length === 0 && (
+      {shownPasskeys.length === 0 && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Fingerprint className="size-3.5" />
           {dict.passkeysHint}

@@ -1,11 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { AppWindow } from "lucide-react";
-import { toast } from "sonner";
 import { Section } from "@/components/account/section";
 import { revokeApp } from "@/lib/actions/account-actions";
 import type { AccountDict } from "@/components/account/account-dict";
+import { useOptimisticRemoval } from "@/components/account/use-optimistic-removal";
 
 interface LinkedApp {
   clientDbId: string;
@@ -21,26 +20,21 @@ export function AppsSection({
   apps: LinkedApp[];
   dict: AccountDict;
 }) {
-  const router = useRouter();
+  const { remove, isShown } = useOptimisticRemoval({ removed: dict.appRevoked, failed: dict.profileError });
+  const shownApps = apps.filter((app) => isShown(app.clientDbId));
 
-  const handleRevoke = async (clientDbId: string) => {
+  const handleRevoke = (clientDbId: string) => {
     if (!window.confirm(dict.revokeConfirm)) return;
-    const result = await revokeApp(clientDbId);
-    if (result.success) {
-      toast.success(dict.appRevoked);
-      router.refresh();
-    } else {
-      toast.error(result.error || dict.profileError);
-    }
+    void remove(clientDbId, () => revokeApp(clientDbId));
   };
 
   return (
     <Section title={dict.appsTitle} description={dict.appsDescription}>
-      {apps.length === 0 ? (
+      {shownApps.length === 0 ? (
         <p className="text-sm text-muted-foreground">{dict.noApps}</p>
       ) : (
         <ul className="flex flex-col divide-y divide-border">
-          {apps.map((app) => (
+          {shownApps.map((app) => (
             <li key={app.clientDbId} className="flex items-center gap-3 py-3">
               <AppWindow className="size-4 text-muted-foreground shrink-0" />
               <div className="min-w-0 flex-1">

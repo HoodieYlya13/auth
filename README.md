@@ -60,6 +60,7 @@ carries their identity and **per-app roles**.
 | Token | `/api/oidc/token` |
 | UserInfo | `/api/oidc/userinfo` |
 | End session | `/api/oidc/logout` |
+| End session from an app's server (confidential clients, POST with a refresh token) | `/api/oidc/end-session` |
 
 ## Setup
 
