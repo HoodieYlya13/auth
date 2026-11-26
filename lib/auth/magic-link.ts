@@ -1,5 +1,5 @@
 import "server-only";
-import { EMAIL_BUTTON_STYLE, EMAIL_STYLE, emailDictionary, sendEmail, type EmailDict } from "@/lib/email";
+import { EMAIL_BUTTON_STYLE, EMAIL_STYLE, emailCodeHtml, emailDictionary, sendEmail, type EmailDict } from "@/lib/email";
 import { getRedis } from "@/lib/redis";
 import { randomInt } from "node:crypto";
 import { randomToken, safeEqual, sha256Base64Url } from "@/lib/crypto";
@@ -113,10 +113,6 @@ function magicCodeText(t: EmailDict, code: string): string {
   return `${t.signInCodeIntro}\n\n${code}\n\n${t.ignoreNote}`;
 }
 
-function codeHtml(code: string): string {
-  return `<p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:8px;margin:0">${code}</p>`;
-}
-
 function magicLinkHtml(t: EmailDict, link: string, code: string): string {
   return `
   <div style="${EMAIL_STYLE}">
@@ -124,7 +120,7 @@ function magicLinkHtml(t: EmailDict, link: string, code: string): string {
     <p style="font-size:14px;color:#525252;margin:0 0 24px">${t.signInLinkIntro}</p>
     <a href="${link}" style="${EMAIL_BUTTON_STYLE}">${t.signInButton}</a>
     <p style="font-size:14px;color:#525252;margin:28px 0 8px">${t.signInOrCode}</p>
-    ${codeHtml(code)}
+    ${emailCodeHtml(code)}
     <p style="font-size:12px;color:#a3a3a3;margin:24px 0 0;word-break:break-all">${link}</p>
   </div>`;
 }
@@ -134,7 +130,7 @@ function magicCodeHtml(t: EmailDict, code: string): string {
   <div style="${EMAIL_STYLE}">
     <h1 style="font-size:18px;margin:0 0 8px">${t.signInTitle}</h1>
     <p style="font-size:14px;color:#525252;margin:0 0 24px">${t.signInCodeIntro}</p>
-    ${codeHtml(code)}
+    ${emailCodeHtml(code)}
     <p style="font-size:12px;color:#a3a3a3;margin:24px 0 0">${t.ignoreNote}</p>
   </div>`;
 }

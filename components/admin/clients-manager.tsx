@@ -15,6 +15,7 @@ import {
   type ClientInput,
 } from "@/lib/actions/admin-actions";
 import type { AdminDict } from "@/components/admin/admin-dict";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface ClientView {
   id: string;
@@ -42,9 +43,11 @@ export function ClientsManager({
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
+  const { confirm, dialog: confirmDialog } = useConfirmDialog(dict.cancel);
 
   return (
     <div className="flex flex-col gap-6">
+      {confirmDialog}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">{dict.clientsTitle}</h1>
         <Button
@@ -174,7 +177,7 @@ export function ClientsManager({
                     <button
                       type="button"
                       onClick={async () => {
-                        if (!window.confirm(dict.regenerateConfirm)) return;
+                        if (!(await confirm(dict.regenerateConfirm, dict.regenerate))) return;
                         const result = await regenerateClientSecret(client.id);
                         if (result.success && result.secret) {
                           setSecret(result.secret);
@@ -190,7 +193,7 @@ export function ClientsManager({
                     type="button"
                     aria-label={dict.delete}
                     onClick={async () => {
-                      if (!window.confirm(dict.deleteConfirm)) return;
+                      if (!(await confirm(dict.deleteConfirm, dict.delete))) return;
                       const result = await deleteClient(client.id);
                       if (result.success) {
                         toast.success(dict.saved);

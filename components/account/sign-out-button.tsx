@@ -21,15 +21,17 @@ export function SignOutButton({
       variant="outline"
       disabled={busy}
       aria-busy={busy}
+      aria-label={label}
       onClick={() => {
         setBusy(true);
         // Redirects on success; a network error gives the button back.
         signOut(locale, clientId).catch(() => setBusy(false));
       }}
-      className="h-9 cursor-pointer gap-1.5"
+      className="h-9 cursor-pointer gap-1.5 max-sm:w-9 max-sm:px-0"
     >
       {busy ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
-      {label}
+      {/* An icon alone on phones, where the header is narrow. */}
+      <span className="max-sm:hidden">{label}</span>
     </Button>
   );
 }

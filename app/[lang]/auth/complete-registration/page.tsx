@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { CompleteRegistrationForm } from "@/components/auth/complete-registration-form";
 import { safeReturnTo } from "@/lib/redirect";
 import { Suspense } from "react";
+import { BackToSigningInApp } from "@/components/auth/back-to-signing-in-app";
 
 function RegistrationFormSkeleton() {
   return (
@@ -75,6 +76,9 @@ export default async function Page({
   return (
     <main className="flex min-h-screen min-h-svh flex-col items-center justify-center bg-background px-4 py-12 selection:bg-primary/20 selection:text-primary">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_-20%,rgba(99,102,241,0.08),transparent)] pointer-events-none"></div>
+      <Suspense fallback={null}>
+        <BackToSigningInApp searchParams={searchParams} label={dict.backToApp} />
+      </Suspense>
 
       <div className="relative z-10 w-full max-w-md bg-card text-card-foreground border border-border rounded-2xl p-8 shadow-md">
         <div className="flex flex-col space-y-2 text-center mb-8">

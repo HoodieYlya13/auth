@@ -27,6 +27,7 @@ import type { AccountDict } from "@/components/account/account-dict";
 import { LocalDate } from "@/components/local-date";
 import { tryCatch } from "@/lib/utils";
 import { useOptimisticRemoval } from "@/components/account/use-optimistic-removal";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Passkey {
   id: string;
@@ -126,8 +127,10 @@ export function PasskeysSection({
   const removal = useOptimisticRemoval({ removed: dict.removed, failed: dict.passkeyError });
   const shownPasskeys = optimisticPasskeys.filter((pk) => removal.isShown(pk.id));
 
-  const handleDelete = (id: string) => {
-    if (!window.confirm(dict.removeConfirm)) return;
+  const { confirm, dialog: confirmDialog } = useConfirmDialog(dict.cancel);
+
+  const handleDelete = async (id: string) => {
+    if (!(await confirm(dict.removeConfirm, dict.remove))) return;
     void removal.remove(id, () => deletePasskey(id, locale));
   };
 
@@ -191,7 +194,7 @@ export function PasskeysSection({
               </button>
               <button
                 type="button"
-                onClick={() => handleDelete(pk.id)}
+                onClick={() => void handleDelete(pk.id)}
                 aria-label={dict.remove}
                 className="text-muted-foreground hover:text-destructive p-1 cursor-pointer"
               >
@@ -208,6 +211,7 @@ export function PasskeysSection({
         </p>
       )}
 
+      {confirmDialog}
       <Dialog
         open={nameDialog !== null}
         onOpenChange={(open) => {

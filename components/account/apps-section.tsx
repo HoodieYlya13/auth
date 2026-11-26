@@ -5,6 +5,7 @@ import { Section } from "@/components/account/section";
 import { revokeApp } from "@/lib/actions/account-actions";
 import type { AccountDict } from "@/components/account/account-dict";
 import { useOptimisticRemoval } from "@/components/account/use-optimistic-removal";
+import { useConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface LinkedApp {
   clientDbId: string;
@@ -23,8 +24,10 @@ export function AppsSection({
   const { remove, isShown } = useOptimisticRemoval({ removed: dict.appRevoked, failed: dict.profileError });
   const shownApps = apps.filter((app) => isShown(app.clientDbId));
 
-  const handleRevoke = (clientDbId: string) => {
-    if (!window.confirm(dict.revokeConfirm)) return;
+  const { confirm, dialog: confirmDialog } = useConfirmDialog(dict.cancel);
+
+  const handleRevoke = async (clientDbId: string) => {
+    if (!(await confirm(dict.revokeConfirm, dict.revoke))) return;
     void remove(clientDbId, () => revokeApp(clientDbId));
   };
 
@@ -45,7 +48,7 @@ export function AppsSection({
               </div>
               <button
                 type="button"
-                onClick={() => handleRevoke(app.clientDbId)}
+                onClick={() => void handleRevoke(app.clientDbId)}
                 className="text-xs text-muted-foreground hover:text-destructive px-2 py-1 cursor-pointer"
               >
                 {dict.revoke}
@@ -54,6 +57,7 @@ export function AppsSection({
           ))}
         </ul>
       )}
+      {confirmDialog}
     </Section>
   );
 }

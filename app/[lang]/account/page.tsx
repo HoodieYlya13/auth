@@ -30,10 +30,17 @@ function SectionSkeleton({ title }: { title: string }) {
   );
 }
 
-async function UserEmailSection() {
+async function UserEmailSection({ lang, changeLabel }: { lang: string; changeLabel: string }) {
   const session = await getSession();
   if (!session) return null;
-  return <p className="text-sm text-muted-foreground break-all">{session.user.email}</p>;
+  return (
+    <p className="text-sm text-muted-foreground break-all">
+      {session.user.email}
+      <Link href={`/${lang}/account/email`} className="ml-2 font-medium text-foreground underline-offset-4 hover:underline">
+        {changeLabel}
+      </Link>
+    </p>
+  );
 }
 
 async function AdminDashboardButton({ lang, dict }: { lang: string; dict: AccountDict }) {
@@ -232,11 +239,12 @@ export default async function Page({
           <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">{t.title}</h1>
             <Suspense fallback={<div className="h-4 w-48 bg-muted rounded animate-pulse mt-1" />}>
-              <UserEmailSection />
+              <UserEmailSection lang={lang} changeLabel={dict.emailChange.changeLink} />
             </Suspense>
           </div>
           <div className="flex items-center gap-2">
-            <Suspense fallback={<div className="h-9 w-32 bg-muted rounded animate-pulse" />}>
+            {/* Only the admin ever sees it: everyone else would see a placeholder vanish. */}
+            <Suspense fallback={null}>
               <AdminDashboardButton lang={lang} dict={t} />
             </Suspense>
             <Suspense fallback={<SignOutButton locale={lang} label={t.signOut} />}>

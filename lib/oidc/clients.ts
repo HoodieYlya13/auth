@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { safeEqual, sha256Base64Url } from "@/lib/crypto";
 import { webOrigins } from "@/lib/oidc/cors";
+import { isAppSignIn, safeReturnTo } from "@/lib/redirect";
 import { SUPPORTED_SCOPES } from "@/lib/oidc/discovery";
 import type { Client } from "@/lib/generated/prisma/client";
 
@@ -138,4 +139,23 @@ export async function findReturnApp(
       }
     }) ?? null;
   return { name: client.name, homeUrl: client.homeUrl, logoutUrl };
+}
+
+/**
+ * The app a sign-in is on its way into, read from its return_to (the
+ * authorize request), with its registered homeUrl: a way back for someone who
+ * changes their mind. Null for a sign-in that isn't for an app.
+ */
+export async function findSigningInApp(
+  returnTo: string | undefined,
+): Promise<{ name: string; homeUrl: string } | null> {
+  const authorizeRequest = safeReturnTo(returnTo);
+  if (!authorizeRequest || !isAppSignIn(authorizeRequest)) return null;
+  const clientId = new URL(authorizeRequest, "http://return-to.invalid").searchParams.get("client_id");
+  if (!clientId) return null;
+  const client = await prisma.client.findUnique({
+    where: { clientId },
+    select: { name: true, homeUrl: true },
+  });
+  return client?.homeUrl ? { name: client.name, homeUrl: client.homeUrl } : null;
 }

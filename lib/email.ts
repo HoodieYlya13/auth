@@ -8,6 +8,11 @@ export const EMAIL_STYLE =
 export const EMAIL_BUTTON_STYLE =
   "display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 20px;border-radius:8px";
 
+/** A one-time code, large and spaced out. */
+export function emailCodeHtml(code: string): string {
+  return `<p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:8px;margin:0">${code}</p>`;
+}
+
 export interface Email {
   to: string;
   subject: string;
