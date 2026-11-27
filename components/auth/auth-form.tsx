@@ -123,8 +123,13 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
     setIsVerifyingPasskey(false);
   };
   const signInWithPasskey = usePasskeySignIn(dict, passkeyProgress);
+  // Focused only once autofill listens: iOS offers the passkey on focus, and one picked earlier answers nobody.
+  const focusEmailFieldUnlessBusy = () => {
+    const hasUserFocusedSomething = document.activeElement !== null && document.activeElement !== document.body;
+    if (!hasUserFocusedSomething) document.getElementById("email")?.focus();
+  };
   // This device's passkeys show in the email field's autofill: picking one signs in.
-  usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
+  usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress, focusEmailFieldUnlessBusy);
   // A code was asked for an account that has a passkey: offered first (see PasskeyOffer).
   const [passkeyOffer, setPasskeyOffer] = useState<{ email: string; prompt: PasskeyBeginResult } | null>(null);
 
@@ -315,8 +320,6 @@ function MagicLinkSection({
           type="email"
           // "webauthn": this device's passkeys show up in the autofill (see usePasskeyAutofill).
           autoComplete="email webauthn"
-          // Focused at once: some desktop browsers then show the passkey suggestion without a click.
-          autoFocus
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);

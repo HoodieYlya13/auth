@@ -69,22 +69,33 @@ export function usePasskeySignIn(messages: PasskeyMessages, progress: PasskeyPro
   };
 }
 
+// The library asks the browser for the passkey after a check of its own: what it needs to be listening.
+const AUTOFILL_REGISTRATION_DELAY_MS = 100;
+
 /**
  * Offers this device's passkeys in the email field's autofill (the field's
  * autocomplete ends with "webauthn"): picking one signs in, and a device
  * without any shows nothing, never another device's QR code.
  */
-export function usePasskeyAutofill(destination: SignInDestination, messages: PasskeyMessages, progress: PasskeyProgress) {
+export function usePasskeyAutofill(
+  destination: SignInDestination,
+  messages: PasskeyMessages,
+  progress: PasskeyProgress,
+  onListening: () => void,
+) {
   const { locale, returnTo } = destination;
   const verify = useEffectEvent((flowId: string, assertion: AuthenticationResponseJSON) => verifyAndContinue(flowId, assertion, progress, messages));
+  const announceListening = useEffectEvent(onListening);
 
   useEffect(() => {
     void (async () => {
-      if (!(await browserSupportsWebAuthnAutofill())) return;
+      if (!(await browserSupportsWebAuthnAutofill())) return announceListening();
       const started = await beginPasskeyAutofill({ locale, returnTo });
-      if (!started.success || !started.options || !started.flowId) return;
+      if (!started.success || !started.options || !started.flowId) return announceListening();
       // Ends with an error when a passkey button opens its own prompt instead: nothing to do then.
-      const [error, assertion] = await tryCatch(startAuthentication({ optionsJSON: started.options, useBrowserAutofill: true }));
+      const ceremony = tryCatch(startAuthentication({ optionsJSON: started.options, useBrowserAutofill: true }));
+      setTimeout(announceListening, AUTOFILL_REGISTRATION_DELAY_MS);
+      const [error, assertion] = await ceremony;
       if (error || !assertion) return;
       await verify(started.flowId, assertion);
     })();
