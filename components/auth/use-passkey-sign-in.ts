@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   browserSupportsWebAuthnAutofill,
   startAuthentication,
+  WebAuthnAbortService,
   type AuthenticationResponseJSON,
 } from "@simplewebauthn/browser";
 import {
@@ -80,6 +81,7 @@ export function usePasskeyAutofill(destination: SignInDestination, messages: Pas
   const { locale, returnTo } = destination;
   const verify = useEffectEvent((flowId: string, assertion: AuthenticationResponseJSON) => verifyAndContinue(flowId, assertion, progress, messages));
   const [isAutofillReady, setIsAutofillReady] = useState(false);
+  const pageRestoreCount = useAutofillStoppedWhileHidden(() => setIsAutofillReady(false));
 
   useEffect(() => {
     void (async () => {
@@ -97,7 +99,34 @@ export function usePasskeyAutofill(destination: SignInDestination, messages: Pas
       if (error || !assertion) return;
       await verify(started.flowId, assertion);
     })();
-  }, [locale, returnTo]);
+  }, [locale, returnTo, pageRestoreCount]);
 
   return isAutofillReady;
+}
+
+/**
+ * Stops the autofill request when the page is hidden: one left waiting in Safari's back-forward
+ * cache takes the passkey picked on the next sign-in page. Counts the restores, to listen again.
+ */
+function useAutofillStoppedWhileHidden(onStopped: () => void): number {
+  const [pageRestoreCount, setPageRestoreCount] = useState(0);
+  const stop = useEffectEvent(onStopped);
+
+  useEffect(() => {
+    const stopListening = () => {
+      WebAuthnAbortService.cancelCeremony();
+      stop();
+    };
+    const listenAgainWhenRestored = (event: PageTransitionEvent) => {
+      if (event.persisted) setPageRestoreCount((count) => count + 1);
+    };
+    window.addEventListener("pagehide", stopListening);
+    window.addEventListener("pageshow", listenAgainWhenRestored);
+    return () => {
+      window.removeEventListener("pagehide", stopListening);
+      window.removeEventListener("pageshow", listenAgainWhenRestored);
+    };
+  }, []);
+
+  return pageRestoreCount;
 }
