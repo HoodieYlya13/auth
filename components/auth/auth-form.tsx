@@ -64,6 +64,14 @@ function codeOnlyWording(dict: AuthFormProps["dict"]): AuthFormProps["dict"] {
   };
 }
 
+/** Focuses the email field without a touch screen only: iOS ignores a passkey picked from the sheet a script's focus opens. */
+function useFocusedEmailFieldWithoutTouchScreen() {
+  useEffect(() => {
+    const hasTouchScreen = navigator.maxTouchPoints > 0;
+    if (!hasTouchScreen) document.getElementById("email")?.focus();
+  }, []);
+}
+
 export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("return_to") ?? undefined;
@@ -123,13 +131,9 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
     setIsVerifyingPasskey(false);
   };
   const signInWithPasskey = usePasskeySignIn(dict, passkeyProgress);
-  // Focused only once autofill listens: iOS offers the passkey on focus, and one picked earlier answers nobody.
-  const focusEmailFieldUnlessBusy = () => {
-    const hasUserFocusedSomething = document.activeElement !== null && document.activeElement !== document.body;
-    if (!hasUserFocusedSomething) document.getElementById("email")?.focus();
-  };
+  useFocusedEmailFieldWithoutTouchScreen();
   // This device's passkeys show in the email field's autofill: picking one signs in.
-  usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress, focusEmailFieldUnlessBusy);
+  usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
   // A code was asked for an account that has a passkey: offered first (see PasskeyOffer).
   const [passkeyOffer, setPasskeyOffer] = useState<{ email: string; prompt: PasskeyBeginResult } | null>(null);
 
