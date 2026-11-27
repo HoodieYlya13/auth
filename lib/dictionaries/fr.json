@@ -220,7 +220,7 @@
     "newEmailCodeIntro": "Saisissez ce code pour confirmer que cette nouvelle adresse e-mail est bien la vôtre. Il est valable 15 minutes.",
     "emailChangedSubject": "Votre adresse e-mail a été changée",
     "emailChangedBody": "L'adresse e-mail de votre compte est désormais {email}. Les codes et liens de connexion y seront envoyés.",
-    "emailChangedIfNotYou": "Si ce n'était pas vous, connectez-vous avec votre passkey sans attendre et remettez l'ancienne adresse.",
+    "emailChangedIfNotYou": "Si ce n'était pas vous, reprenez votre compte : il revient à cette adresse, est déconnecté partout et perd ses passkeys. Le bouton fonctionne pendant 7 jours.",
     "signInCodeForAppSubject": "Votre code pour vous connecter à {app} : {code}",
     "signInCodeForAppIntro": "Saisissez ce code sur la page de connexion pour vous connecter à {app}. Il est valable 15 minutes et ne sert qu'une fois.",
     "deletionScheduledSubject": "Votre compte sera supprimé le {date}",
@@ -233,7 +233,10 @@
     "newDeviceBodyForApp": "Votre compte vient d'être connecté depuis {device}, pour utiliser {app}.",
     "newDeviceIfNotYou": "Si ce n'était pas vous, mettez fin à cette connexion depuis votre compte et supprimez toute passkey que vous ne reconnaissez pas.",
     "unknownDevice": "un nouvel appareil",
-    "accountButton": "Votre compte"
+    "accountButton": "Votre compte",
+    "claimBackButton": "Ce n'était pas moi, reprendre mon compte",
+    "claimedBackSubject": "Le changement d'adresse de votre compte a été annulé",
+    "claimedBackBody": "L'ancienne adresse du compte l'a repris : il n'utilise plus cette adresse, et toutes ses connexions ont pris fin."
   },
   "emailChange": {
     "title": "Changer d'e-mail",
@@ -272,5 +275,17 @@
     "sectionTitle": "Supprimer le compte",
     "sectionDescription": "Supprimé 30 jours après votre confirmation ; vous reconnecter d'ici là le conserve.",
     "link": "Supprimer mon compte"
+  },
+  "claimBack": {
+    "title": "Reprendre votre compte",
+    "confirmTitle": "Remettre votre compte à {email} ?",
+    "confirmBody": "L'adresse e-mail de votre compte redevient celle-ci. Toutes les connexions prennent fin, ici et dans vos applications, et toutes ses passkeys sont supprimées, car la personne qui a changé l'adresse a pu ajouter la sienne. Vous vous connectez ensuite avec un code envoyé à cette adresse et ajoutez une nouvelle passkey.",
+    "confirmButton": "Reprendre mon compte",
+    "doneTitle": "Votre compte est de nouveau à vous",
+    "doneBody": "Il utilise de nouveau {email}, et tout le monde a été déconnecté. Connectez-vous avec un code envoyé à cette adresse, puis ajoutez une nouvelle passkey.",
+    "signIn": "Se connecter",
+    "linkGone": "Ce lien a expiré ou a déjà été utilisé.",
+    "home": "Retour à la connexion",
+    "error": "Une erreur est survenue. Réessayez."
   }
 }

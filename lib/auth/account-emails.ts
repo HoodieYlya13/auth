@@ -1,6 +1,6 @@
 import "server-only";
 import { EMAIL_STYLE, emailCodeHtml, emailDictionary, noticeEmail, sendEmail } from "@/lib/email";
-import { accountPageUrl } from "@/lib/auth/account-page-url";
+import { accountPageUrl, claimBackUrl } from "@/lib/auth/account-page-url";
 import type { AccountCodePurpose } from "@/lib/auth/account-codes";
 
 /** A code proving it's you (to your address) or that a new address is yours. In the page's language. */
@@ -23,13 +23,30 @@ export async function sendAccountCode(to: string, code: string, purpose: Account
   });
 }
 
-/** To the old address once the change is done: an account never moves away from its owner unnoticed. */
-export async function sendEmailChangedNotice(oldEmail: string, newEmail: string, locale: string): Promise<void> {
+/** To the old address once the change is done: an account never moves away from its owner unnoticed, nor for good. */
+export async function sendEmailChangedNotice(
+  change: { oldEmail: string; newEmail: string; claimBackToken: string },
+  locale: string,
+): Promise<void> {
   const t = await emailDictionary(locale);
   await sendEmail({
-    to: oldEmail,
+    to: change.oldEmail,
     subject: t.emailChangedSubject,
-    ...noticeEmail({ title: t.emailChangedSubject, paragraphs: [t.emailChangedBody.replace("{email}", newEmail), t.emailChangedIfNotYou] }),
+    ...noticeEmail({
+      title: t.emailChangedSubject,
+      paragraphs: [t.emailChangedBody.replace("{email}", change.newEmail), t.emailChangedIfNotYou],
+      button: { label: t.claimBackButton, href: claimBackUrl(locale, change.claimBackToken) },
+    }),
+  });
+}
+
+/** To the address the account just left: the former one took it back. */
+export async function sendEmailClaimedBackNotice(droppedEmail: string, locale: string): Promise<void> {
+  const t = await emailDictionary(locale);
+  await sendEmail({
+    to: droppedEmail,
+    subject: t.claimedBackSubject,
+    ...noticeEmail({ title: t.claimedBackSubject, paragraphs: [t.claimedBackBody] }),
   });
 }
 

@@ -220,7 +220,7 @@
     "newEmailCodeIntro": "Enter this code to confirm this is your new email address. It is valid for 15 minutes.",
     "emailChangedSubject": "Your email address was changed",
     "emailChangedBody": "Your account's email address is now {email}. Sign-in codes and links go there from now on.",
-    "emailChangedIfNotYou": "If this wasn't you, sign in with your passkey right away and change it back.",
+    "emailChangedIfNotYou": "If this wasn't you, take your account back: it returns to this address, signs out everywhere and removes its passkeys. The button works for 7 days.",
     "signInCodeForAppSubject": "Your code to sign in to {app}: {code}",
     "signInCodeForAppIntro": "Enter this code on the sign-in page to sign in to {app}. It is valid for 15 minutes and can be used once.",
     "deletionScheduledSubject": "Your account will be deleted on {date}",
@@ -233,7 +233,10 @@
     "newDeviceBodyForApp": "Your account was just signed in to from {device}, to use {app}.",
     "newDeviceIfNotYou": "If this wasn't you, end that sign-in from your account page and remove any passkey you don't recognise.",
     "unknownDevice": "a new device",
-    "accountButton": "Your account"
+    "accountButton": "Your account",
+    "claimBackButton": "This wasn't me, take my account back",
+    "claimedBackSubject": "Your account's email change was undone",
+    "claimedBackBody": "The account's former address took it back: it no longer uses this address, and every sign-in to it has ended."
   },
   "emailChange": {
     "title": "Change your email",
@@ -272,5 +275,17 @@
     "sectionTitle": "Delete account",
     "sectionDescription": "Deleted 30 days after you confirm; signing in before then keeps it.",
     "link": "Delete my account"
+  },
+  "claimBack": {
+    "title": "Take your account back",
+    "confirmTitle": "Move your account back to {email}?",
+    "confirmBody": "Your account's email goes back to this address. Every sign-in ends, here and in your apps, and all its passkeys are removed, since whoever changed the email may have added theirs. You then sign in with a code sent to this address and add a new passkey.",
+    "confirmButton": "Take my account back",
+    "doneTitle": "Your account is yours again",
+    "doneBody": "It uses {email} again, and everyone was signed out. Sign in with a code sent there, then add a new passkey.",
+    "signIn": "Sign in",
+    "linkGone": "This link has expired or was already used.",
+    "home": "Back to sign-in",
+    "error": "Something went wrong. Try again."
   }
 }

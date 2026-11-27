@@ -9,9 +9,14 @@ import { getSession } from "@/lib/auth/session";
 import { checkEmailRateLimit, checkRateLimit } from "@/lib/ratelimit";
 import { consumeAccountCode, createAccountCode, forgetIdentityVerified, isIdentityVerified } from "@/lib/auth/account-codes";
 import { sendAccountCode, sendEmailChangedNotice } from "@/lib/auth/account-emails";
+import { CLAIM_BACK_DAYS, createClaimBack, hasPendingClaimBack } from "@/lib/auth/email-claim-back";
 import { CONFIRM_FIRST, isWithinLimits, NOT_SIGNED_IN, TOO_MANY, WRONG_CODE, type StepResult } from "@/lib/actions/sensitive-action-guards";
 
 const EMAIL_TAKEN: StepResult = { success: false, error: "Another account already uses that email address." };
+const CHANGED_RECENTLY: StepResult = {
+  success: false,
+  error: `Your email address changed less than ${CLAIM_BACK_DAYS} days ago. It can change again once that change can no longer be undone.`,
+};
 const emailSchema = z.email().max(254);
 
 /** Once it's you: a code to the new address, which must not belong to another account. */
@@ -19,6 +24,7 @@ export async function sendNewEmailCode(newEmail: string, locale: string): Promis
   const session = await getSession();
   if (!session) return NOT_SIGNED_IN;
   if (!(await isIdentityVerified(session.sessionId))) return CONFIRM_FIRST;
+  if (await hasPendingClaimBack(session.user.id)) return CHANGED_RECENTLY;
 
   const parsed = emailSchema.safeParse(newEmail?.trim().toLowerCase());
   if (!parsed.success) return { success: false, error: "Please enter a valid email address." };
@@ -32,11 +38,12 @@ export async function sendNewEmailCode(newEmail: string, locale: string): Promis
   return { success: true };
 }
 
-/** The new address's code; the account moves to it, and the old address is told. */
+/** The new address's code; the account moves to it, and the old address is told, with a link to take it back. */
 export async function confirmNewEmail(code: string, locale: string): Promise<StepResult> {
   const session = await getSession();
   if (!session) return NOT_SIGNED_IN;
   if (!(await isIdentityVerified(session.sessionId))) return CONFIRM_FIRST;
+  if (await hasPendingClaimBack(session.user.id)) return CHANGED_RECENTLY;
   const newEmail = await consumeAccountCode(session.user.id, "new-email", code);
   if (!newEmail) return WRONG_CODE;
   // Taken meanwhile by a sign-up with that address.
@@ -52,7 +59,10 @@ export async function confirmNewEmail(code: string, locale: string): Promise<Ste
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return EMAIL_TAKEN;
   if (error) throw error;
   await forgetIdentityVerified(session.sessionId);
-  after(() => sendEmailChangedNotice(oldEmail, newEmail, locale).catch((error) => console.error("Email change notice failed:", error)));
+  const claimBackToken = await createClaimBack({ userId: session.user.id, formerEmail: oldEmail });
+  after(() =>
+    sendEmailChangedNotice({ oldEmail, newEmail, claimBackToken }, locale).catch((error) => console.error("Email change notice failed:", error)),
+  );
   return { success: true };
 }
 
