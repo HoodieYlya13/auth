@@ -16,6 +16,7 @@ import {
 } from "@/lib/actions/auth-actions";
 import { tryCatch } from "@/lib/utils";
 import { forgetSignInDraft } from "@/components/auth/sign-in-draft";
+import { tracePasskey } from "@/components/auth/passkey-trace";
 
 export type PasskeySignInOutcome = "signed-in" | "cancelled" | "failed";
 
@@ -82,13 +83,17 @@ export function usePasskeyAutofill(destination: SignInDestination, messages: Pas
 
   useEffect(() => {
     void (async () => {
-      if (!(await browserSupportsWebAuthnAutofill())) return;
+      const isAutofillSupported = await browserSupportsWebAuthnAutofill();
+      tracePasskey("autofill supported?", { isAutofillSupported });
+      if (!isAutofillSupported) return;
       const started = await beginPasskeyAutofill({ locale, returnTo });
+      tracePasskey("autofill begun", { success: started.success, hasOptions: Boolean(started.options), error: started.error ?? null });
       if (!started.success || !started.options || !started.flowId) return;
       // The field turns into a passkey field (iOS offers passkeys only there) just as the request starts listening.
       flushSync(() => setIsAutofillReady(true));
       // Ends with an error when a passkey button opens its own prompt instead: nothing to do then.
       const [error, assertion] = await tryCatch(startAuthentication({ optionsJSON: started.options, useBrowserAutofill: true }));
+      tracePasskey("autofill ended", { error: error ? `${error.name}: ${error.message}` : null, hasAssertion: Boolean(assertion) });
       if (error || !assertion) return;
       await verify(started.flowId, assertion);
     })();
