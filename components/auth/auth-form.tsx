@@ -13,7 +13,7 @@ import {
 } from "@/lib/actions/auth-actions";
 import { PasskeyOffer } from "@/components/auth/passkey-offer";
 import { useSignInPageTrace } from "@/components/auth/passkey-trace";
-import { usePasskeyAutofill, usePasskeySignIn, type PasskeyAutofillState, type PasskeyProgress } from "@/components/auth/use-passkey-sign-in";
+import { usePasskeyAutofill, usePasskeySignIn, type PasskeyProgress } from "@/components/auth/use-passkey-sign-in";
 import { ArrowLeft, Fingerprint, KeyRound, Mail, Loader2 } from "lucide-react";
 
 import { useSearchParams } from "next/navigation";
@@ -65,18 +65,12 @@ function codeOnlyWording(dict: AuthFormProps["dict"]): AuthFormProps["dict"] {
   };
 }
 
-/**
- * Focuses the email field without a touch screen only (iOS ignores a passkey picked from the sheet a
- * script's focus opens), once autofill has settled: browsers choose their suggestions on focus.
- */
-function useFocusedEmailFieldWithoutTouchScreen(autofillState: PasskeyAutofillState) {
-  const hasAutofillSettled = autofillState !== "starting";
+/** Focuses the email field without a touch screen only: iOS ignores a passkey picked from the sheet a script's focus opens. */
+function useFocusedEmailFieldWithoutTouchScreen() {
   useEffect(() => {
     const hasTouchScreen = navigator.maxTouchPoints > 0;
-    const hasUserFocusedSomething = document.activeElement !== null && document.activeElement !== document.body;
-    if (!hasAutofillSettled || hasTouchScreen || hasUserFocusedSomething) return;
-    document.getElementById("email")?.focus();
-  }, [hasAutofillSettled]);
+    if (!hasTouchScreen) document.getElementById("email")?.focus();
+  }, []);
 }
 
 export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
@@ -140,8 +134,8 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   const signInWithPasskey = usePasskeySignIn(dict, passkeyProgress);
   useSignInPageTrace();
   // This device's passkeys show in the email field's autofill: picking one signs in.
-  const passkeyAutofillState = usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
-  useFocusedEmailFieldWithoutTouchScreen(passkeyAutofillState);
+  usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
+  useFocusedEmailFieldWithoutTouchScreen();
   // A code was asked for an account that has a passkey: offered first (see PasskeyOffer).
   const [passkeyOffer, setPasskeyOffer] = useState<{ email: string; prompt: PasskeyBeginResult } | null>(null);
 
@@ -220,7 +214,6 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
         setTurnstileToken={setTurnstileToken}
         setShowCaptcha={setShowCaptcha}
         onSubmit={handleEmailSubmit}
-        isPasskeyAutofillReady={passkeyAutofillState === "listening"}
         dict={dict}
       />
     </div>
@@ -291,7 +284,6 @@ function MagicLinkSection({
   setTurnstileToken,
   setShowCaptcha,
   onSubmit,
-  isPasskeyAutofillReady,
   dict,
 }: {
   email: string;
@@ -302,7 +294,6 @@ function MagicLinkSection({
   setTurnstileToken: (token: string | null) => void;
   setShowCaptcha: (show: boolean) => void;
   onSubmit: (email: string) => void;
-  isPasskeyAutofillReady: boolean;
   dict: AuthFormProps["dict"];
 }) {
   return (
@@ -334,7 +325,7 @@ function MagicLinkSection({
           name="email"
           type="email"
           // "webauthn": this device's passkeys show up in the autofill (see usePasskeyAutofill).
-          autoComplete={isPasskeyAutofillReady ? "email webauthn" : "email"}
+          autoComplete="email webauthn"
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);

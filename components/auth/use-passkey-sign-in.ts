@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
   browserSupportsWebAuthnAutofill,
@@ -77,25 +76,19 @@ export function usePasskeySignIn(messages: PasskeyMessages, progress: PasskeyPro
  * autocomplete ends with "webauthn"): picking one signs in, and a device
  * without any shows nothing, never another device's QR code.
  */
-/** Starting: the field is a plain email field. Listening: it offers passkeys. Unavailable: it never will on this page. */
-export type PasskeyAutofillState = "starting" | "listening" | "unavailable";
-
-export function usePasskeyAutofill(destination: SignInDestination, messages: PasskeyMessages, progress: PasskeyProgress): PasskeyAutofillState {
+export function usePasskeyAutofill(destination: SignInDestination, messages: PasskeyMessages, progress: PasskeyProgress) {
   const { locale, returnTo } = destination;
   const verify = useEffectEvent((flowId: string, assertion: AuthenticationResponseJSON) => verifyAndContinue(flowId, assertion, progress, messages));
-  const [autofillState, setAutofillState] = useState<PasskeyAutofillState>("starting");
-  const pageRestoreCount = useAutofillStoppedWhileHidden(() => setAutofillState("starting"));
+  const pageRestoreCount = useAutofillStoppedWhileHidden();
 
   useEffect(() => {
     void (async () => {
       const isAutofillSupported = await browserSupportsWebAuthnAutofill();
       tracePasskey("autofill supported?", { isAutofillSupported });
-      if (!isAutofillSupported) return setAutofillState("unavailable");
+      if (!isAutofillSupported) return;
       const started = await beginPasskeyAutofill({ locale, returnTo });
       tracePasskey("autofill begun", { success: started.success, hasOptions: Boolean(started.options), error: started.error ?? null });
-      if (!started.success || !started.options || !started.flowId) return setAutofillState("unavailable");
-      // The field turns into a passkey field (iOS offers passkeys only there) just as the request starts listening.
-      flushSync(() => setAutofillState("listening"));
+      if (!started.success || !started.options || !started.flowId) return;
       // Ends with an error when a passkey button opens its own prompt instead: nothing to do then.
       const [error, assertion] = await tryCatch(startAuthentication({ optionsJSON: started.options, useBrowserAutofill: true }));
       tracePasskey("autofill ended", { error: error ? `${error.name}: ${error.message}` : null, hasAssertion: Boolean(assertion) });
@@ -103,23 +96,17 @@ export function usePasskeyAutofill(destination: SignInDestination, messages: Pas
       await verify(started.flowId, assertion);
     })();
   }, [locale, returnTo, pageRestoreCount]);
-
-  return autofillState;
 }
 
 /**
  * Stops the autofill request when the page is hidden: one left waiting in Safari's back-forward
  * cache takes the passkey picked on the next sign-in page. Counts the restores, to listen again.
  */
-function useAutofillStoppedWhileHidden(onStopped: () => void): number {
+function useAutofillStoppedWhileHidden(): number {
   const [pageRestoreCount, setPageRestoreCount] = useState(0);
-  const stop = useEffectEvent(onStopped);
 
   useEffect(() => {
-    const stopListening = () => {
-      WebAuthnAbortService.cancelCeremony();
-      stop();
-    };
+    const stopListening = () => WebAuthnAbortService.cancelCeremony();
     const listenAgainWhenRestored = (event: PageTransitionEvent) => {
       if (event.persisted) setPageRestoreCount((count) => count + 1);
     };
