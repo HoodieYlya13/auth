@@ -12,7 +12,6 @@ import {
   type PasskeyBeginResult,
 } from "@/lib/actions/auth-actions";
 import { PasskeyOffer } from "@/components/auth/passkey-offer";
-import { useSignInPageTrace } from "@/components/auth/passkey-trace";
 import { usePasskeyAutofill, usePasskeySignIn, type PasskeyProgress } from "@/components/auth/use-passkey-sign-in";
 import { ArrowLeft, Fingerprint, KeyRound, Mail, Loader2 } from "lucide-react";
 
@@ -132,7 +131,6 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
     setIsVerifyingPasskey(false);
   };
   const signInWithPasskey = usePasskeySignIn(dict, passkeyProgress);
-  useSignInPageTrace();
   // This device's passkeys show in the email field's autofill: picking one signs in.
   usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
   useFocusedEmailFieldWithoutTouchScreen();
