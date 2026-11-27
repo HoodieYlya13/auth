@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import {
   browserSupportsWebAuthnAutofill,
@@ -74,19 +75,24 @@ export function usePasskeySignIn(messages: PasskeyMessages, progress: PasskeyPro
  * autocomplete ends with "webauthn"): picking one signs in, and a device
  * without any shows nothing, never another device's QR code.
  */
-export function usePasskeyAutofill(destination: SignInDestination, messages: PasskeyMessages, progress: PasskeyProgress) {
+export function usePasskeyAutofill(destination: SignInDestination, messages: PasskeyMessages, progress: PasskeyProgress): boolean {
   const { locale, returnTo } = destination;
   const verify = useEffectEvent((flowId: string, assertion: AuthenticationResponseJSON) => verifyAndContinue(flowId, assertion, progress, messages));
+  const [isAutofillReady, setIsAutofillReady] = useState(false);
 
   useEffect(() => {
     void (async () => {
       if (!(await browserSupportsWebAuthnAutofill())) return;
       const started = await beginPasskeyAutofill({ locale, returnTo });
       if (!started.success || !started.options || !started.flowId) return;
+      // The field turns into a passkey field (iOS offers passkeys only there) just as the request starts listening.
+      flushSync(() => setIsAutofillReady(true));
       // Ends with an error when a passkey button opens its own prompt instead: nothing to do then.
       const [error, assertion] = await tryCatch(startAuthentication({ optionsJSON: started.options, useBrowserAutofill: true }));
       if (error || !assertion) return;
       await verify(started.flowId, assertion);
     })();
   }, [locale, returnTo]);
+
+  return isAutofillReady;
 }

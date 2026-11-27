@@ -133,7 +133,7 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
   const signInWithPasskey = usePasskeySignIn(dict, passkeyProgress);
   useFocusedEmailFieldWithoutTouchScreen();
   // This device's passkeys show in the email field's autofill: picking one signs in.
-  usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
+  const isPasskeyAutofillReady = usePasskeyAutofill({ locale, returnTo }, dict, passkeyProgress);
   // A code was asked for an account that has a passkey: offered first (see PasskeyOffer).
   const [passkeyOffer, setPasskeyOffer] = useState<{ email: string; prompt: PasskeyBeginResult } | null>(null);
 
@@ -212,6 +212,7 @@ export function AuthForm({ locale, dict: fullDict }: AuthFormProps) {
         setTurnstileToken={setTurnstileToken}
         setShowCaptcha={setShowCaptcha}
         onSubmit={handleEmailSubmit}
+        isPasskeyAutofillReady={isPasskeyAutofillReady}
         dict={dict}
       />
     </div>
@@ -282,6 +283,7 @@ function MagicLinkSection({
   setTurnstileToken,
   setShowCaptcha,
   onSubmit,
+  isPasskeyAutofillReady,
   dict,
 }: {
   email: string;
@@ -292,6 +294,7 @@ function MagicLinkSection({
   setTurnstileToken: (token: string | null) => void;
   setShowCaptcha: (show: boolean) => void;
   onSubmit: (email: string) => void;
+  isPasskeyAutofillReady: boolean;
   dict: AuthFormProps["dict"];
 }) {
   return (
@@ -323,7 +326,7 @@ function MagicLinkSection({
           name="email"
           type="email"
           // "webauthn": this device's passkeys show up in the autofill (see usePasskeyAutofill).
-          autoComplete="email webauthn"
+          autoComplete={isPasskeyAutofillReady ? "email webauthn" : "email"}
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
